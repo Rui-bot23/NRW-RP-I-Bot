@@ -36,7 +36,7 @@ async function execute(interaction) {
   if (!isAdmin && !hasRole) {
     return interaction.reply({
       content: "❌ Du hast keine Berechtigung, den RP-Status zu ändern.",
-      ephemeral: true,
+      flags: 64,
     });
   }
 
@@ -54,7 +54,7 @@ async function execute(interaction) {
           )
           .setTimestamp(),
       ],
-      ephemeral: true,
+      flags: 64,
     });
   }
 
@@ -66,7 +66,7 @@ async function execute(interaction) {
   if (!channel) {
     return interaction.reply({
       content: "❌ RP-Channel nicht gefunden. Bitte `/setup rp channel` ausführen.",
-      ephemeral: true,
+      flags: 64,
     });
   }
 
@@ -74,7 +74,7 @@ async function execute(interaction) {
   const newState      = isStart ? "active" : "inactive";
   const pingContent   = cfg.rpPingRoleId ? `<@&${cfg.rpPingRoleId}>` : null;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   // Guard against double-trigger
   if (isStart && cfg.rpState === "active") {
