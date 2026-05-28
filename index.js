@@ -69,6 +69,26 @@ async function connectDB() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 (async () => {
   await connectDB();
+  // Start dashboard
+  if (process.env.DASHBOARD_ENABLED !== "false") {
+    try {
+      const { createDashboard } = require("./dashboard/server");
+      const dashApp = createDashboard(client, {
+        DISCORD_CLIENT_ID:     process.env.CLIENT_ID,
+        DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
+        DASHBOARD_BASE_URL:    process.env.DASHBOARD_BASE_URL || `http://localhost:${process.env.DASHBOARD_PORT || 3000}`,
+        DASHBOARD_SECRET:      process.env.DASHBOARD_SECRET || "nrwrp-secret-change-me",
+        DASHBOARD_PORT:        parseInt(process.env.DASHBOARD_PORT || "3000"),
+      });
+      const port = parseInt(process.env.DASHBOARD_PORT || "3000");
+      dashApp.listen(port, "0.0.0.0", () => {
+        console.log(chalk.cyan(`[DASHBOARD] Running on port ${port}`));
+      });
+    } catch (err) {
+      console.error(chalk.yellow("[DASHBOARD] Failed to start:"), err.message);
+    }
+  }
+
   const token = process.env.DISCORD_TOKEN;
   if (!token) { console.error(chalk.red("[BOT] No DISCORD_TOKEN set.")); process.exit(1); }
   await client.login(token);
