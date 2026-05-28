@@ -339,8 +339,9 @@ async function welcomeTest(interaction, cfg) {
   if (cfg.welcomeBannerUrl) {
     await channel.send({
       flags: 32768,
+      allowedMentions: { users: [member.id] },
       components: [
-        { type: 10, content: `${member} *(Testvorschau)*` },
+        { type: 10, content: `<@${member.id}> *(Testvorschau)*` },
         {
           type: 17,
           components: [
@@ -350,7 +351,6 @@ async function welcomeTest(interaction, cfg) {
             { type: 10, content: mainText },
             { type: 14 },
             { type: 10, content: footer },
-            { type: 14 },
           ],
         },
       ],
@@ -363,7 +363,11 @@ async function welcomeTest(interaction, cfg) {
       .setDescription(mainText + "\n\n" + footer)
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
       .setTimestamp();
-    await channel.send({ content: `${member} *(Testvorschau)*`, embeds: [embed] });
+    await channel.send({
+      content: `<@${member.id}> *(Testvorschau)*`,
+      embeds: [embed],
+      allowedMentions: { users: [member.id] },
+    });
   }
 
   return interaction.editReply({ content: `✅ Testvorschau wurde in ${channel} gesendet.` });
