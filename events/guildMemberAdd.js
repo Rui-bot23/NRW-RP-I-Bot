@@ -1,9 +1,14 @@
 /**
- * guildMemberAdd.js
- * Fires when a new member joins — sends Components V2 welcome message.
+ * guildMemberAdd.js — Components V2 welcome message
+ *
+ * Components V2 rules:
+ * - flags: 32768 MUST be set
+ * - No top-level "content" field — everything goes inside components
+ * - No embeds alongside components v2
+ * - allowedMentions must be set to allow user pings inside text components
  */
 
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, AllowedMentionsTypes } = require("discord.js");
 const { getGuildConfig } = require("../utils/guildConfig");
 const { getEmojis } = require("../utils/emojiManager");
 
@@ -17,52 +22,54 @@ async function execute(member, client) {
     const channel = member.guild.channels.cache.get(cfg.welcomeChannelId);
     if (!channel) return;
 
-    const emojis   = await getEmojis(member.guild);
-    const nickname = member.displayName || member.user.username;
-    const ch       = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
+    const emojis    = await getEmojis(member.guild);
+    const nickname  = member.displayName || member.user.username;
+    const ch        = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
 
-    const ticketEmoji  = emojis.ticket  || "🎫";
-    const staffEmoji   = emojis.staff   || "⭐";
-    const memberEmoji  = emojis.member  || "👤";
-    const verifiedEmoji = emojis.verified || "✅";
-    const infoEmoji    = emojis.info    || "ℹ️";
+    const eTicket   = emojis.ticket   || "🎫";
+    const eStaff    = emojis.staff    || "⭐";
+    const eMember   = emojis.member   || "👤";
+    const eVerified = emojis.verified || "✅";
+    const eInfo     = emojis.info     || "ℹ️";
 
     const mainText = [
-      `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch, damit du weißt, wie es weitergeht:`,
+      `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`,
       ``,
-      `${verifiedEmoji} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-      `${memberEmoji} Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
-      `${ticketEmoji} Bei Fragen kannst du ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
-      `${staffEmoji} Fraktionen findest du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel.`,
-      `${infoEmoji} Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
+      `${eVerified} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
+      `${eMember} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
+      `${eTicket} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
+      `${eStaff} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
+      `${eInfo} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
     ].join("\n");
 
-    const footer = `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
+    const footer = `-# Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
 
     if (cfg.welcomeBannerUrl) {
-      // Full Components V2 with banner
+      // ── Components V2 ────────────────────────────────────────────────────────
+      // Rules:
+      //   • flags 32768 = IS_COMPONENTS_V2
+      //   • No top-level "content" — user mention goes as a text component BEFORE the container
+      //   • allowedMentions needed so the user ping actually notifies them
       await channel.send({
         flags: 32768,
+        allowedMentions: { users: [member.id] },
         components: [
-          // User mention above container
           {
-            type: 10,
-            content: `${member}`,
+            type: 10,          // TextDisplay — user mention/ping
+            content: `<@${member.id}>`,
           },
           {
-            type: 17, // Container
+            type: 17,          // Container
             components: [
               {
-                type: 12, // MediaGallery
-                items: [
-                  { media: { url: cfg.welcomeBannerUrl } },
-                ],
+                type: 12,      // MediaGallery — banner image
+                items: [{ media: { url: cfg.welcomeBannerUrl } }],
               },
               {
                 type: 10,
-                content: `# ${memberEmoji} Willkommen hier auf NRW:RP I German`,
+                content: `# ${eMember} Willkommen hier auf NRW:RP I German`,
               },
-              { type: 14 }, // Separator
+              { type: 14 },    // Separator
               {
                 type: 10,
                 content: mainText,
@@ -72,24 +79,29 @@ async function execute(member, client) {
                 type: 10,
                 content: footer,
               },
-              { type: 14 },
             ],
           },
         ],
       });
+
     } else {
-      // Embed fallback (no banner set)
+      // ── Embed fallback (no banner set yet) ───────────────────────────────────
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
-        .setTitle(`${memberEmoji} Willkommen hier auf NRW:RP I German`)
+        .setTitle(`${eMember} Willkommen hier auf NRW:RP I German`)
         .setDescription(mainText + "\n\n" + footer)
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
 
-      await channel.send({ content: `${member}`, embeds: [embed] });
+      await channel.send({
+        content: `<@${member.id}>`,
+        embeds: [embed],
+        allowedMentions: { users: [member.id] },
+      });
     }
+
   } catch (err) {
-    console.error("[WELCOME]", err.message);
+    console.error("[WELCOME]", err);
   }
 }
 
