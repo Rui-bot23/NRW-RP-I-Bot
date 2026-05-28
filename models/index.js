@@ -20,6 +20,13 @@ const guildConfigSchema = new Schema({
   ticketDmTranscript:   { type: Boolean, default: true },
   ticketCloseDelay:     { type: Number, default: 5 },
 
+  // RP — persistent message
+  rpMessageId:        { type: String, default: null },  // ID of the message to edit
+  rpState:            { type: String, default: 'inactive' }, // 'active' | 'inactive'
+
+  // Custom emojis (uploaded to guild, stored as emojiId map)
+  customEmojis: { type: Map, of: String, default: {} },
+
   // RP Start/Stop
   rpChannelId:        { type: String, default: null },  // channel to post rp start/stop
   rpAllowedRoleId:    { type: String, default: null },  // role allowed to trigger start/stop
