@@ -174,6 +174,7 @@ function buildRpPayload(isStart, emojis, pingContent) {
 
   return {
     flags: 32768, // IS_COMPONENTS_V2
+    allowedMentions: pingContent ? { roles: [pingContent.replace("<@&", "").replace(">", "")] } : { parse: [] },
     components,
   };
 }
