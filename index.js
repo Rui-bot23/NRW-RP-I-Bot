@@ -49,7 +49,8 @@ function loadEvents(dir) {
   if (!fs.existsSync(dir)) return;
   for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".js"))) {
     const event = require(path.join(dir, file));
-    const name  = file.replace(".js", "");
+    // Use explicit name if provided, otherwise derive from filename
+    const name  = event.name || file.replace(".js", "");
     event.once
       ? client.once(name,  (...args) => event.execute(...args, client))
       : client.on(name,    (...args) => event.execute(...args, client));
