@@ -188,6 +188,19 @@ const data = new SlashCommandBuilder()
       )
   )
 
+  // ── Moderation group ─────────────────────────────────────────────────────
+  .addSubcommandGroup(group =>
+    group.setName("moderation").setDescription("Moderation konfigurieren")
+      .addSubcommand(sub =>
+        sub.setName("logchannel")
+          .setDescription("Mod-Log Channel setzen")
+          .addChannelOption(o =>
+            o.setName("channel").setDescription("Mod-Log Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+      )
+  )
+
   // ── Top-level ──────────────────────────────────────────────────────────────
   .addSubcommand(sub =>
     sub.setName("view")
@@ -224,6 +237,14 @@ async function execute(interaction) {
       if (sub === "banner")   return await welcomeBanner(interaction, guildId);
       if (sub === "channels") return await welcomeChannels(interaction, guildId);
       if (sub === "test")     return await welcomeTest(interaction, cfg);
+    }
+
+    if (group === "moderation") {
+      if (sub === "logchannel") {
+        const ch = interaction.options.getChannel("channel");
+        await updateGuildConfig(guildId, { modLogChannelId: ch.id });
+        return interaction.editReply({ content: `✅ Mod-Log Channel gesetzt: ${ch}` });
+      }
     }
 
     if (group === "emojis") {
