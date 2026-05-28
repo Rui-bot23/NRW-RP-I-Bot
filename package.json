@@ -1,7 +1,7 @@
 {
   "name": "nrw-rp-bot",
   "version": "1.0.0",
-  "description": "NRW:RP I German — Discord Bot",
+  "description": "NRW:RP I German \u2014 Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node deploy-commands.js && node index.js",
@@ -12,7 +12,8 @@
     "mongoose": "^8.0.0",
     "js-yaml": "^4.1.0",
     "dotenv": "^16.4.5",
-    "chalk": "^4.1.2"
+    "chalk": "^4.1.2",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
