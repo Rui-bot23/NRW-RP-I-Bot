@@ -1,14 +1,8 @@
 /**
- * guildMemberAdd.js — Components V2 welcome message
- *
- * Components V2 rules:
- * - flags: 32768 MUST be set
- * - No top-level "content" field — everything goes inside components
- * - No embeds alongside components v2
- * - allowedMentions must be set to allow user pings inside text components
+ * guildMemberAdd.js — Components V2 welcome (requires discord.js 14.16.0+)
  */
 
-const { EmbedBuilder, AllowedMentionsTypes } = require("discord.js");
+const { EmbedBuilder } = require("discord.js");
 const { getGuildConfig } = require("../utils/guildConfig");
 const { getEmojis } = require("../utils/emojiManager");
 
@@ -22,18 +16,20 @@ async function execute(member, client) {
     const channel = member.guild.channels.cache.get(cfg.welcomeChannelId);
     if (!channel) return;
 
-    const emojis    = await getEmojis(member.guild);
-    const nickname  = member.displayName || member.user.username;
-    const ch        = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
+    // Pass cfg directly so getEmojis skips the extra DB call
+    const emojis = await getEmojis(member.guild, cfg);
+    const nick   = member.displayName || member.user.username;
+    const ch     = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
 
+    const eWelcome  = emojis.welcome  || emojis.member  || "👤";
+    const eVerified = emojis.verified || "✅";
+    const eMember   = emojis.member   || "👤";
     const eTicket   = emojis.ticket   || "🎫";
     const eStaff    = emojis.staff    || "⭐";
-    const eMember   = emojis.member   || "👤";
-    const eVerified = emojis.verified || "✅";
     const eInfo     = emojis.info     || "ℹ️";
 
     const mainText = [
-      `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`,
+      `Schön, dass du da bist **${nick}**! Bitte lies dir diese Infos aufmerksam durch:`,
       ``,
       `${eVerified} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
       `${eMember} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
@@ -45,31 +41,27 @@ async function execute(member, client) {
     const footer = `-# Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
 
     if (cfg.welcomeBannerUrl) {
-      // ── Components V2 ────────────────────────────────────────────────────────
-      // Rules:
-      //   • flags 32768 = IS_COMPONENTS_V2
-      //   • No top-level "content" — user mention goes as a text component BEFORE the container
-      //   • allowedMentions needed so the user ping actually notifies them
+      // ── Components V2 (discord.js 14.16.0+ required) ────────────────────────
       await channel.send({
-        flags: 32768,
+        flags: 32768,                                      // MessageFlags.IsComponentsV2
         allowedMentions: { users: [member.id] },
         components: [
           {
-            type: 10,          // TextDisplay — user mention/ping
+            type: 10,                                      // TextDisplay — ping
             content: `<@${member.id}>`,
           },
           {
-            type: 17,          // Container
+            type: 17,                                      // Container
             components: [
               {
-                type: 12,      // MediaGallery — banner image
+                type: 12,                                  // MediaGallery — banner
                 items: [{ media: { url: cfg.welcomeBannerUrl } }],
               },
               {
                 type: 10,
-                content: `# ${eMember} Willkommen hier auf NRW:RP I German`,
+                content: `# ${eWelcome} Willkommen hier auf NRW:RP I German`,
               },
-              { type: 14 },    // Separator
+              { type: 14 },                               // Separator
               {
                 type: 10,
                 content: mainText,
@@ -83,12 +75,11 @@ async function execute(member, client) {
           },
         ],
       });
-
     } else {
-      // ── Embed fallback (no banner set yet) ───────────────────────────────────
+      // ── Embed fallback ───────────────────────────────────────────────────────
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
-        .setTitle(`${eMember} Willkommen hier auf NRW:RP I German`)
+        .setTitle(`${eWelcome} Willkommen hier auf NRW:RP I German`)
         .setDescription(mainText + "\n\n" + footer)
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
@@ -99,7 +90,6 @@ async function execute(member, client) {
         allowedMentions: { users: [member.id] },
       });
     }
-
   } catch (err) {
     console.error("[WELCOME]", err);
   }
