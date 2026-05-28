@@ -12,6 +12,10 @@ const guildConfigSchema = new Schema({
   welcomeTicketChannel:    { type: String, default: null },  // #ticket channel mention
   welcomeFraktionChannel:  { type: String, default: null },  // #fraktionen channel mention
 
+  // Moderation
+  modLogChannelId: { type: String, default: null },
+  warnings: { type: Map, of: Array, default: {} },
+
   // Tickets
   ticketLogChannelId:   { type: String, default: null },
   ticketCategoryId:     { type: String, default: null },
