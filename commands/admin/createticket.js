@@ -30,7 +30,7 @@ const createData = new SlashCommandBuilder()
   .addStringOption(o => o.setName("prefix").setDescription("Kanal-Präfix (z.B. support → support-username)"));
 
 async function executeCreate(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   const guildId     = interaction.guild.id;
   const name        = interaction.options.getString("name");
@@ -86,7 +86,7 @@ const deleteData = new SlashCommandBuilder()
   );
 
 async function executeDelete(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
   const name    = interaction.options.getString("name");
   const deleted = await TicketCategory.findOneAndDelete({
     guildId: interaction.guild.id,
@@ -116,7 +116,7 @@ const listData = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 async function executeList(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
   const cats = await TicketCategory.find({ guildId: interaction.guild.id }).sort({ createdAt: 1 });
 
   if (!cats.length) {
@@ -149,7 +149,7 @@ const panelData = new SlashCommandBuilder()
   );
 
 async function executePanel(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   const guildId  = interaction.guild.id;
   const target   = interaction.options.getChannel("channel") || interaction.channel;
