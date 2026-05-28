@@ -88,7 +88,7 @@ async function execute(interaction) {
     if (sub === "stats")    return await doStats(interaction, cfg);
   } catch (err) {
     console.error("[TICKET CMD]", err);
-    const p = { content: `❌ Fehler: ${err.message}`, ephemeral: true };
+    const p = { content: `❌ Fehler: ${err.message}`, flags: 64 };
     return interaction.replied || interaction.deferred
       ? interaction.editReply(p)
       : interaction.reply(p);
@@ -101,12 +101,12 @@ async function doClose(interaction, cfg) {
   const ticket = await Ticket.findOne({ channelId: interaction.channel.id, status: "open" });
 
   if (!ticket) {
-    return interaction.reply({ content: "❌ Dieser Channel ist kein offenes Ticket.", ephemeral: true });
+    return interaction.reply({ content: "❌ Dieser Channel ist kein offenes Ticket.", flags: 64 });
   }
 
   const isOwner = interaction.user.id === ticket.ownerId;
   if (!isOwner && !isStaff(interaction.member, cfg)) {
-    return interaction.reply({ content: "❌ Nur der Ticket-Ersteller oder Staff kann dieses Ticket schließen.", ephemeral: true });
+    return interaction.reply({ content: "❌ Nur der Ticket-Ersteller oder Staff kann dieses Ticket schließen.", flags: 64 });
   }
 
   await interaction.deferReply();
@@ -133,17 +133,17 @@ async function doClose(interaction, cfg) {
 // ── Claim ─────────────────────────────────────────────────────────────────────
 async function doClaim(interaction, cfg, claim) {
   if (!isStaff(interaction.member, cfg)) {
-    return interaction.reply({ content: "❌ Nur Staff kann Tickets beanspruchen.", ephemeral: true });
+    return interaction.reply({ content: "❌ Nur Staff kann Tickets beanspruchen.", flags: 64 });
   }
 
   const ticket = await Ticket.findOne({ channelId: interaction.channel.id, status: "open" });
   if (!ticket) {
-    return interaction.reply({ content: "❌ Dieser Channel ist kein offenes Ticket.", ephemeral: true });
+    return interaction.reply({ content: "❌ Dieser Channel ist kein offenes Ticket.", flags: 64 });
   }
 
   if (claim) {
     if (ticket.claimedBy && ticket.claimedBy !== interaction.user.id) {
-      return interaction.reply({ content: `⚠️ Dieses Ticket wurde bereits von <@${ticket.claimedBy}> beansprucht.`, ephemeral: true });
+      return interaction.reply({ content: `⚠️ Dieses Ticket wurde bereits von <@${ticket.claimedBy}> beansprucht.`, flags: 64 });
     }
     ticket.claimedBy = interaction.user.id;
     await ticket.save();
@@ -162,18 +162,18 @@ async function doClaim(interaction, cfg, claim) {
 // ── Add / Remove ──────────────────────────────────────────────────────────────
 async function doAddRemove(interaction, cfg, add) {
   if (!isStaff(interaction.member, cfg)) {
-    return interaction.reply({ content: "❌ Nur Staff kann Nutzer hinzufügen/entfernen.", ephemeral: true });
+    return interaction.reply({ content: "❌ Nur Staff kann Nutzer hinzufügen/entfernen.", flags: 64 });
   }
 
   const ticket = await Ticket.findOne({ channelId: interaction.channel.id });
   if (!ticket) {
-    return interaction.reply({ content: "❌ Dieser Channel ist kein Ticket.", ephemeral: true });
+    return interaction.reply({ content: "❌ Dieser Channel ist kein Ticket.", flags: 64 });
   }
 
   const user   = interaction.options.getUser("nutzer");
   const member = await interaction.guild.members.fetch(user.id).catch(() => null);
   if (!member) {
-    return interaction.reply({ content: "❌ Nutzer nicht auf dem Server gefunden.", ephemeral: true });
+    return interaction.reply({ content: "❌ Nutzer nicht auf dem Server gefunden.", flags: 64 });
   }
 
   if (add) {
@@ -190,12 +190,12 @@ async function doAddRemove(interaction, cfg, add) {
 // ── Rename ────────────────────────────────────────────────────────────────────
 async function doRename(interaction, cfg) {
   if (!isStaff(interaction.member, cfg)) {
-    return interaction.reply({ content: "❌ Nur Staff kann Tickets umbenennen.", ephemeral: true });
+    return interaction.reply({ content: "❌ Nur Staff kann Tickets umbenennen.", flags: 64 });
   }
 
   const ticket = await Ticket.findOne({ channelId: interaction.channel.id });
   if (!ticket) {
-    return interaction.reply({ content: "❌ Dieser Channel ist kein Ticket.", ephemeral: true });
+    return interaction.reply({ content: "❌ Dieser Channel ist kein Ticket.", flags: 64 });
   }
 
   const newName = interaction.options.getString("name")
@@ -208,12 +208,12 @@ async function doRename(interaction, cfg) {
 // ── Priority ──────────────────────────────────────────────────────────────────
 async function doPriority(interaction, cfg) {
   if (!isStaff(interaction.member, cfg)) {
-    return interaction.reply({ content: "❌ Nur Staff kann die Priorität setzen.", ephemeral: true });
+    return interaction.reply({ content: "❌ Nur Staff kann die Priorität setzen.", flags: 64 });
   }
 
   const ticket = await Ticket.findOne({ channelId: interaction.channel.id });
   if (!ticket) {
-    return interaction.reply({ content: "❌ Dieser Channel ist kein Ticket.", ephemeral: true });
+    return interaction.reply({ content: "❌ Dieser Channel ist kein Ticket.", flags: 64 });
   }
 
   const stufe = interaction.options.getString("stufe");
@@ -236,7 +236,7 @@ async function doPriority(interaction, cfg) {
 // ── List ──────────────────────────────────────────────────────────────────────
 async function doList(interaction, cfg) {
   if (!isStaff(interaction.member, cfg)) {
-    return interaction.reply({ content: "❌ Nur Staff kann Tickets auflisten.", ephemeral: true });
+    return interaction.reply({ content: "❌ Nur Staff kann Tickets auflisten.", flags: 64 });
   }
 
   const nutzer = interaction.options.getUser("nutzer");
@@ -246,7 +246,7 @@ async function doList(interaction, cfg) {
   const tickets = await Ticket.find(query).sort({ createdAt: -1 }).limit(20);
 
   if (!tickets.length) {
-    return interaction.reply({ content: "ℹ️ Keine offenen Tickets gefunden.", ephemeral: true });
+    return interaction.reply({ content: "ℹ️ Keine offenen Tickets gefunden.", flags: 64 });
   }
 
   const lines = tickets.map(t => {
@@ -263,7 +263,7 @@ async function doList(interaction, cfg) {
         .setDescription(lines.join("\n"))
         .setTimestamp(),
     ],
-    ephemeral: true,
+    flags: 64,
   });
 }
 
@@ -299,7 +299,7 @@ async function doStats(interaction, cfg) {
         )
         .setTimestamp(),
     ],
-    ephemeral: true,
+    flags: 64,
   });
 }
 
