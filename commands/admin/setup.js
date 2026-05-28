@@ -303,6 +303,7 @@ async function welcomeChannels(interaction, guildId) {
 
 async function welcomeTest(interaction, cfg) {
   // Fires the same logic as guildMemberAdd but for the admin themselves
+  const { getEmojis } = require("../../utils/emojiManager");
   const member = interaction.member;
 
   if (!cfg.welcomeChannelId) {
@@ -317,30 +318,38 @@ async function welcomeTest(interaction, cfg) {
   const nickname = member.displayName || member.user.username;
   const ch = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
 
+  const emojis      = await getEmojis(interaction.guild);
+  const ticketEmoji  = emojis.ticket   || "🎫";
+  const staffEmoji   = emojis.staff    || "⭐";
+  const memberEmoji  = emojis.member   || "👤";
+  const verifiedEmoji = emojis.verified || "✅";
+  const infoEmoji    = emojis.info     || "ℹ️";
+
+  const mainText = [
+    `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`,
+    ``,
+    `${verifiedEmoji} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
+    `${memberEmoji} Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
+    `${ticketEmoji} Bei Fragen kannst du ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
+    `${staffEmoji} Fraktionen findest du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel.`,
+    `${infoEmoji} Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
+  ].join("\n");
+  const footer = `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
+
   if (cfg.welcomeBannerUrl) {
     await channel.send({
-      content: `${member} *(Testvorschau)*`,
       flags: 32768,
       components: [
+        { type: 10, content: `${member} *(Testvorschau)*` },
         {
           type: 17,
           components: [
             { type: 12, items: [{ media: { url: cfg.welcomeBannerUrl } }] },
-            { type: 10, content: `# Willkommen hier auf NRW:RP I German` },
+            { type: 10, content: `# ${memberEmoji} Willkommen hier auf NRW:RP I German` },
             { type: 14 },
-            {
-              type: 10,
-              content: [
-                `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch, damit du weißt, wie es weitergeht:`,
-                `1. Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-                `2. Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
-                `3. Bei Fragen kannst du dann ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
-                `4. Fraktionen kannst du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel finden.`,
-                `5. Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
-              ].join("\n"),
-            },
+            { type: 10, content: mainText },
             { type: 14 },
-            { type: 10, content: `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German` },
+            { type: 10, content: footer },
             { type: 14 },
           ],
         },
@@ -350,21 +359,10 @@ async function welcomeTest(interaction, cfg) {
     const { EmbedBuilder } = require("discord.js");
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setTitle("Willkommen hier auf NRW:RP I German")
-      .setDescription([
-        `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`,
-        `1. Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-        `2. Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
-        `3. Bei Fragen kannst du dann ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
-        `4. Fraktionen kannst du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel finden.`,
-        `5. Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
-        ``,
-        `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!`,
-        `-# NRW:RP I German`,
-      ].join("\n"))
+      .setTitle(`${memberEmoji} Willkommen hier auf NRW:RP I German`)
+      .setDescription(mainText + "\n\n" + footer)
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
       .setTimestamp();
-
     await channel.send({ content: `${member} *(Testvorschau)*`, embeds: [embed] });
   }
 
