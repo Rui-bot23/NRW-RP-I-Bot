@@ -1,80 +1,76 @@
-const {
-  EmbedBuilder,
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SectionBuilder,
-  MediaGalleryBuilder,
-  MediaGalleryItemBuilder,
-  SeparatorBuilder,
-  MessageFlags,
-} = require("discord.js");
+/**
+ * guildMemberAdd.js
+ * Fires when a new member joins — sends Components V2 welcome message.
+ */
+
+const { EmbedBuilder } = require("discord.js");
 const { getGuildConfig } = require("../utils/guildConfig");
+const { getEmojis } = require("../utils/emojiManager");
 
 const once = false;
 
 async function execute(member, client) {
   try {
     const cfg = await getGuildConfig(member.guild.id);
-
     if (!cfg.welcomeChannelId) return;
 
     const channel = member.guild.channels.cache.get(cfg.welcomeChannelId);
     if (!channel) return;
 
+    const emojis   = await getEmojis(member.guild);
     const nickname = member.displayName || member.user.username;
+    const ch       = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
 
-    // Build channel mention helpers
-    const ch = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
+    const ticketEmoji  = emojis.ticket  || "🎫";
+    const staffEmoji   = emojis.staff   || "⭐";
+    const memberEmoji  = emojis.member  || "👤";
+    const verifiedEmoji = emojis.verified || "✅";
+    const infoEmoji    = emojis.info    || "ℹ️";
 
-    // Build the message using Components V2 (matching your JSON structure)
-    // Discord.js v14 supports this via flags: IsComponentsV2
-    const content = [
-      `# Willkommen hier auf NRW:RP I German`,
-      ``,
+    const mainText = [
       `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch, damit du weißt, wie es weitergeht:`,
-      `1. Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-      `2. Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
-      `3. Bei Fragen kannst du dann ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
-      `4. Fraktionen kannst du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel finden.`,
-      `5. Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
+      ``,
+      `${verifiedEmoji} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
+      `${memberEmoji} Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
+      `${ticketEmoji} Bei Fragen kannst du ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
+      `${staffEmoji} Fraktionen findest du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel.`,
+      `${infoEmoji} Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
     ].join("\n");
 
     const footer = `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
 
-    // Use Components V2 if banner is set, otherwise fall back to a clean embed
     if (cfg.welcomeBannerUrl) {
-      // Components V2 layout matching your JSON exactly
+      // Full Components V2 with banner
       await channel.send({
-        content: `${member}`,
-        flags: 32768, // IS_COMPONENTS_V2
+        flags: 32768,
         components: [
+          // User mention above container
+          {
+            type: 10,
+            content: `${member}`,
+          },
           {
             type: 17, // Container
             components: [
               {
                 type: 12, // MediaGallery
-                items: [{ media: { url: cfg.welcomeBannerUrl } }],
+                items: [
+                  { media: { url: cfg.welcomeBannerUrl } },
+                ],
               },
               {
-                type: 10, // TextDisplay
-                content: `# Willkommen hier auf NRW:RP I German`,
+                type: 10,
+                content: `# ${memberEmoji} Willkommen hier auf NRW:RP I German`,
               },
               { type: 14 }, // Separator
               {
                 type: 10,
-                content: [
-                  `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch, damit du weißt, wie es weitergeht:`,
-                  `1. Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-                  `2. Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
-                  `3. Bei Fragen kannst du dann ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
-                  `4. Fraktionen kannst du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel finden.`,
-                  `5. Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
-                ].join("\n"),
+                content: mainText,
               },
               { type: 14 },
               {
                 type: 10,
-                content: `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German`,
+                content: footer,
               },
               { type: 14 },
             ],
@@ -82,11 +78,11 @@ async function execute(member, client) {
         ],
       });
     } else {
-      // Clean embed fallback (no banner set yet)
+      // Embed fallback (no banner set)
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
-        .setTitle("Willkommen hier auf NRW:RP I German")
-        .setDescription(content + "\n\n" + footer)
+        .setTitle(`${memberEmoji} Willkommen hier auf NRW:RP I German`)
+        .setDescription(mainText + "\n\n" + footer)
         .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
 
