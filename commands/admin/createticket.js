@@ -16,6 +16,7 @@ const {
 const { v4: uuidv4 } = require("uuid");
 const { TicketCategory } = require("../../models");
 const { getGuildConfig } = require("../../utils/guildConfig");
+const { getEmojis } = require("../../utils/emojiManager");
 
 // ── /createticket ─────────────────────────────────────────────────────────────
 const createData = new SlashCommandBuilder()
@@ -54,17 +55,20 @@ async function executeCreate(interaction) {
     teamPingId: teamRole?.id || null,
   });
 
-  const total = await TicketCategory.countDocuments({ guildId });
+  const total  = await TicketCategory.countDocuments({ guildId });
+  const emojis = await getEmojis(interaction.guild);
+  const eOk    = emojis.ok || "✅";
+  const eTicket = emojis.ticket || "🎫";
 
   const embed = new EmbedBuilder()
     .setColor(0x57F287)
-    .setTitle("✅  Ticket-Kategorie erstellt")
+    .setTitle(`${eOk}  Ticket-Kategorie erstellt`)
     .addFields(
-      { name: "Name",        value: `${emoji} ${name}`,                            inline: true },
-      { name: "Präfix",      value: `\`${prefix}-username\``,                      inline: true },
-      { name: "Team-Ping",   value: teamRole ? `${teamRole}` : "*Keiner*",         inline: true },
-      { name: "Beschreibung",value: description,                                    inline: false },
-      { name: "Kategorien",  value: `Gesamt: **${total}**`,                        inline: true },
+      { name: "Name",         value: `${emoji} ${name}`,                  inline: true },
+      { name: "Präfix",       value: `\`${prefix}-username\``,             inline: true },
+      { name: "Team-Ping",    value: teamRole ? `${teamRole}` : "*Keiner*", inline: true },
+      { name: "Beschreibung", value: description,                          inline: false },
+      { name: `${eTicket} Kategorien gesamt`, value: `${total}`,           inline: true },
     )
     .setFooter({ text: "Benutze /ticketpanel um das Panel zu senden" })
     .setTimestamp();
@@ -89,12 +93,10 @@ async function executeDelete(interaction) {
     name: new RegExp(`^${name}$`, "i"),
   });
 
-  if (!deleted) {
-    return interaction.editReply({ content: `❌ Keine Kategorie namens **${name}** gefunden.` });
-  }
+  if (!deleted) return interaction.editReply({ content: `❌ Keine Kategorie namens **${name}** gefunden.` });
 
   return interaction.editReply({
-    content: `✅ **${deleted.emoji} ${deleted.name}** wurde entfernt.\nBenutze \`/ticketpanel\` um das Panel zu aktualisieren.`,
+    content: `✅ **${deleted.emoji} ${deleted.name}** wurde entfernt. Benutze \`/ticketpanel\` um das Panel zu aktualisieren.`,
   });
 }
 
@@ -121,13 +123,15 @@ async function executeList(interaction) {
     return interaction.editReply({ content: "Noch keine Kategorien. Benutze `/createticket` um eine zu erstellen." });
   }
 
-  const lines = cats.map((c, i) =>
+  const emojis  = await getEmojis(interaction.guild);
+  const eTicket = emojis.ticket || "🎫";
+  const lines   = cats.map((c, i) =>
     `**${i + 1}.** ${c.emoji} **${c.name}**\n> ${c.description}\n> Präfix: \`${c.prefix}\` · Ping: ${c.teamPingId ? `<@&${c.teamPingId}>` : "*Keiner*"}`
   ).join("\n\n");
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle(`🎫  Ticket-Kategorien (${cats.length})`)
+    .setTitle(`${eTicket}  Ticket-Kategorien (${cats.length})`)
     .setDescription(lines)
     .setTimestamp();
 
@@ -149,18 +153,23 @@ async function executePanel(interaction) {
 
   const guildId  = interaction.guild.id;
   const target   = interaction.options.getChannel("channel") || interaction.channel;
-  const guildCfg = await getGuildConfig(guildId);
   const cats     = await TicketCategory.find({ guildId }).sort({ createdAt: 1 });
+  const emojis   = await getEmojis(interaction.guild);
+
+  const eTicket  = emojis.ticket  || "🎫";
+  const eInfo    = emojis.info    || "ℹ️";
+  const eStaff   = emojis.staff   || "⭐";
+  const eOk      = emojis.ok      || "✅";
 
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
-    .setTitle("🎫  NRW:RP I German — Support")
+    .setTitle(`${eTicket}  NRW:RP I German — Support`)
     .setDescription(
-      "Hast du ein Problem oder eine Frage? Erstelle einfach ein Support-Ticket!\n\n" +
-      "**Wie funktioniert es?**\n" +
-      "• Wähle eine Kategorie aus dem Dropdown unten\n" +
-      "• Gib deinen Namen und deinen Grund an\n" +
-      "• Unser Support-Team wird sich schnellstmöglich um dich kümmern!\n\n" +
+      `Hast du ein Problem oder eine Frage? Erstelle einfach ein Support-Ticket!\n\n` +
+      `**Wie funktioniert es?**\n` +
+      `${eOk} Wähle eine Kategorie aus dem Dropdown unten\n` +
+      `${eInfo} Gib deinen Namen und deinen Grund an\n` +
+      `${eStaff} Unser Support-Team kümmert sich schnellstmöglich um dich!\n\n` +
       `**Verfügbare Kategorien:** ${cats.length}`
     )
     .setFooter({ text: "NRW:RP I German" })
@@ -171,7 +180,7 @@ async function executePanel(interaction) {
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId("nrw_ticket_category")
-        .setPlaceholder("🎫  Wähle eine Ticket-Kategorie...")
+        .setPlaceholder(`${eTicket}  Wähle eine Ticket-Kategorie...`)
         .addOptions(cats.map(c => ({
           label: c.name,
           description: c.description.slice(0, 100),
