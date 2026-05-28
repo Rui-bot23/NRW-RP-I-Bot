@@ -1,6 +1,6 @@
 # NRW:RP Bot
 
-Der offizielle Discord Bot für **NRW:RP I German** — mit automatischen Willkommensnachrichten, Ticket-System und RP Start/Stop Ankündigungen. Alles wird direkt über Slash-Commands in Discord konfiguriert — keine Config-Dateien bearbeiten.
+Der offizielle Discord Bot für **NRW:RP I German** - mit automatischen Willkommensnachrichten, Ticket-System und RP Start/Stop Ankündigungen. Alles wird direkt über Slash-Commands in Discord konfiguriert — keine Config-Dateien bearbeiten.
 
 ---
 
@@ -83,7 +83,7 @@ git push -u origin main
 2. **New Project → Deploy from GitHub repo**
 3. Wähle dein Repository aus
 
-### Schritt 3 — Umgebungsvariablen in Railway setzen
+### Schritt 3 - Umgebungsvariablen in Railway setzen
 
 Gehe zu deinem Service → **Variables** Tab und füge folgende ein:
 
