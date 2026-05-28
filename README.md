@@ -77,7 +77,7 @@ git remote add origin https://github.com/DEIN_NAME/nrwrp-bot.git
 git push -u origin main
 ```
 
-### Schritt 2 — Railway Projekt erstellen
+### Schritt 2 - Railway Projekt erstellen
 
 1. Gehe zu [railway.app](https://railway.app) und melde dich mit GitHub an
 2. **New Project → Deploy from GitHub repo**
@@ -96,7 +96,7 @@ Gehe zu deinem Service → **Variables** Tab und füge folgende ein:
 | `MONGO_URI` | Dein MongoDB Connection String |
 | `NODE_ENV` | `production` |
 
-### Schritt 4 — Fertig
+### Schritt 4 - Fertig
 
 Railway deployt automatisch. Der Bot geht online und registriert die Slash-Commands beim Start.
 
