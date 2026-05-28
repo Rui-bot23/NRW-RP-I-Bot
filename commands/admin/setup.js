@@ -208,7 +208,7 @@ const data = new SlashCommandBuilder()
 
 // ── Execute ───────────────────────────────────────────────────────────────────
 async function execute(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   const guildId  = interaction.guild.id;
   const cfg      = await getGuildConfig(guildId);
