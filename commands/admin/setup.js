@@ -17,6 +17,7 @@ const {
   ChannelType,
 } = require("discord.js");
 const { getGuildConfig, updateGuildConfig } = require("../../utils/guildConfig");
+const { getEmojis, SLOT_FIELD, UNICODE } = require("../../utils/emojiManager");
 
 const data = new SlashCommandBuilder()
   .setName("setup")
@@ -134,6 +135,59 @@ const data = new SlashCommandBuilder()
       )
   )
 
+  // ── Emojis group ──────────────────────────────────────────────────────────
+  .addSubcommandGroup(group =>
+    group.setName("emojis").setDescription("Custom Emojis für Bot-Nachrichten setzen")
+      .addSubcommand(sub =>
+        sub.setName("set")
+          .setDescription("Einen Emoji-Slot mit deinem eigenen Emoji belegen")
+          .addStringOption(o =>
+            o.setName("slot").setDescription("Welcher Slot?").setRequired(true)
+              .addChoices(
+                { name: "welcome  — Willkommens-Header",    value: "welcome"  },
+                { name: "ticket   — Ticket Panel & Intro",  value: "ticket"   },
+                { name: "staff    — Staff-Zeile",           value: "staff"    },
+                { name: "member   — Nutzer-Zeile",          value: "member"   },
+                { name: "verified — Regeln-Zeile",          value: "verified" },
+                { name: "info     — Info-Zeile",            value: "info"     },
+                { name: "ok       — Erfolg / RP Start",     value: "ok"       },
+                { name: "error    — Fehler / RP Stop",      value: "error"    },
+                { name: "warning  — Warnung / Priorität",   value: "warning"  },
+                { name: "rpstart  — RP Start Header",       value: "rpstart"  },
+                { name: "rpstop   — RP Stop Header",        value: "rpstop"   },
+              )
+          )
+          .addStringOption(o =>
+            o.setName("emoji").setDescription("Dein Emoji (z.B. :meinemoji: oder Unicode)").setRequired(true)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("reset")
+          .setDescription("Einen oder alle Emoji-Slots zurücksetzen")
+          .addStringOption(o =>
+            o.setName("slot").setDescription("Slot zurücksetzen (leer = alle)")
+              .addChoices(
+                { name: "welcome",  value: "welcome"  },
+                { name: "ticket",   value: "ticket"   },
+                { name: "staff",    value: "staff"    },
+                { name: "member",   value: "member"   },
+                { name: "verified", value: "verified" },
+                { name: "info",     value: "info"     },
+                { name: "ok",       value: "ok"       },
+                { name: "error",    value: "error"    },
+                { name: "warning",  value: "warning"  },
+                { name: "rpstart",  value: "rpstart"  },
+                { name: "rpstop",   value: "rpstop"   },
+                { name: "alle",     value: "all"      },
+              )
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("list")
+          .setDescription("Alle aktuell gesetzten Emoji-Slots anzeigen")
+      )
+  )
+
   // ── Top-level ──────────────────────────────────────────────────────────────
   .addSubcommand(sub =>
     sub.setName("view")
@@ -170,6 +224,12 @@ async function execute(interaction) {
       if (sub === "banner")   return await welcomeBanner(interaction, guildId);
       if (sub === "channels") return await welcomeChannels(interaction, guildId);
       if (sub === "test")     return await welcomeTest(interaction, cfg);
+    }
+
+    if (group === "emojis") {
+      if (sub === "set")   return await emojiSet(interaction, guildId);
+      if (sub === "reset") return await emojiReset(interaction, guildId);
+      if (sub === "list")  return await emojiList(interaction, guildId);
     }
 
     if (group === "tickets") {
@@ -392,7 +452,62 @@ async function rpPingRole(interaction, guildId) {
   return interaction.editReply({ content: `✅ Ping-Rolle gesetzt: ${role}` });
 }
 
-// ── Ticket handlers ──────────────────────────────────────────────────────────
+// ── Emoji handlers ───────────────────────────────────────────────────────────
+async function emojiSet(interaction, guildId) {
+  const slot      = interaction.options.getString("slot");
+  const emojiInput = interaction.options.getString("emoji").trim();
+  const field     = SLOT_FIELD[slot];
+  if (!field) return interaction.editReply({ content: "❌ Unbekannter Slot." });
+
+  // Accept: <:name:id>  <a:name:id>  or plain unicode/text
+  await updateGuildConfig(guildId, { [field]: emojiInput });
+
+  return interaction.editReply({
+    content: `✅ Slot **${slot}** gesetzt auf: ${emojiInput}`,
+  });
+}
+
+async function emojiReset(interaction, guildId) {
+  const slot  = interaction.options.getString("slot") || "all";
+  const updates = {};
+
+  if (slot === "all") {
+    for (const field of Object.values(SLOT_FIELD)) updates[field] = null;
+  } else {
+    const field = SLOT_FIELD[slot];
+    if (!field) return interaction.editReply({ content: "❌ Unbekannter Slot." });
+    updates[field] = null;
+  }
+
+  await updateGuildConfig(guildId, updates);
+  return interaction.editReply({ content: `✅ Emoji-Slot(s) **${slot}** zurückgesetzt auf Standard.` });
+}
+
+async function emojiList(interaction, guildId) {
+  const { EmbedBuilder } = require("discord.js");
+  const cfg    = await getGuildConfig(guildId);
+  const emojis = await getEmojis(interaction.guild, cfg);
+
+  const slots = Object.keys(SLOT_FIELD);
+  const lines = slots.map(slot => {
+    const field    = SLOT_FIELD[slot];
+    const custom   = cfg[field];
+    const resolved = emojis[slot] || UNICODE[slot] || "•";
+    const source   = custom ? "✏️ Custom" : "📦 Standard";
+    return `${resolved} \`${slot}\` — ${source}`;
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle("🎨  Emoji Slots")
+    .setDescription(lines.join("\n"))
+    .setFooter({ text: "✏️ Custom = per /setup emojis set  •  📦 Standard = bundled/unicode" })
+    .setTimestamp();
+
+  return interaction.editReply({ embeds: [embed] });
+}
+
+// ── Ticket handlers ────────────────────────────────────────────────────────────
 async function ticketLogs(interaction, guildId) {
   const channel = interaction.options.getChannel("channel");
   await updateGuildConfig(guildId, { ticketLogChannelId: channel.id });
