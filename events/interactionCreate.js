@@ -39,7 +39,7 @@ async function execute(interaction, client) {
       await cmd.execute(interaction);
     } catch (err) {
       console.error(`[CMD ERROR] /${interaction.commandName}:`, err);
-      const p = { content: `❌ Fehler: ${err.message}`, ephemeral: true };
+      const p = { content: `❌ Fehler: ${err.message}`, flags: 64 };
       interaction.replied || interaction.deferred
         ? await interaction.editReply(p).catch(() => {})
         : await interaction.reply(p).catch(() => {});
@@ -56,7 +56,7 @@ async function execute(interaction, client) {
     if (!category) {
       return interaction.reply({
         content: "❌ Diese Kategorie existiert nicht mehr. Bitte Admin kontaktieren.",
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -69,7 +69,7 @@ async function execute(interaction, client) {
     if (openCount >= (cfg.ticketMaxPerUser ?? 1)) {
       return interaction.reply({
         content: `⚠️ Du hast bereits **${openCount}** offene${openCount !== 1 ? " Tickets" : "s Ticket"}. Bitte warte bis es gelöst wurde.`,
-        ephemeral: true,
+        flags: 64,
       });
     }
 
@@ -104,12 +104,12 @@ async function execute(interaction, client) {
 
   // ── Modal Submit — Ticket Open ──────────────────────────────────────────────
   if (interaction.isModalSubmit() && interaction.customId.startsWith("nrw_ticket_modal_")) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     const categoryId  = interaction.customId.replace("nrw_ticket_modal_", "");
     const category    = await TicketCategory.findOne({ categoryId });
     const cfg         = await getGuildConfig(interaction.guild.id);
-    const emojis      = await getEmojis(interaction.guild);
+    const emojis      = await getEmojis(interaction.guild, cfg);
     const subject     = interaction.fields.getTextInputValue("ticket_subject");
     const description = interaction.fields.getTextInputValue("ticket_description");
 
@@ -243,12 +243,12 @@ async function execute(interaction, client) {
     const ticket = await Ticket.findOne({ channelId: interaction.channel.id, status: "open" });
 
     if (!ticket) {
-      return interaction.reply({ content: "❌ Kein offenes Ticket in diesem Channel.", ephemeral: true });
+      return interaction.reply({ content: "❌ Kein offenes Ticket in diesem Channel.", flags: 64 });
     }
 
     const isOwner = interaction.user.id === ticket.ownerId;
     if (!isOwner && !isStaff(interaction.member, cfg)) {
-      return interaction.reply({ content: "❌ Nur der Ticket-Ersteller oder Staff kann dieses Ticket schließen.", ephemeral: true });
+      return interaction.reply({ content: "❌ Nur der Ticket-Ersteller oder Staff kann dieses Ticket schließen.", flags: 64 });
     }
 
     await interaction.deferReply();
@@ -257,7 +257,7 @@ async function execute(interaction, client) {
     ticket.closedAt = Date.now();
     await ticket.save();
 
-    const emojis = await getEmojis(interaction.guild);
+    const emojis = await getEmojis(interaction.guild, cfg);
     const eError = emojis.error || "🔴";
 
     await interaction.editReply({
@@ -281,25 +281,25 @@ async function execute(interaction, client) {
   if (interaction.isButton() && interaction.customId.startsWith("nrw_ticket_claim_")) {
     const cfg = await getGuildConfig(interaction.guild.id);
     if (!isStaff(interaction.member, cfg)) {
-      return interaction.reply({ content: "❌ Nur Staff kann Tickets übernehmen.", ephemeral: true });
+      return interaction.reply({ content: "❌ Nur Staff kann Tickets übernehmen.", flags: 64 });
     }
 
     const ticket = await Ticket.findOne({ channelId: interaction.channel.id, status: "open" });
     if (!ticket) {
-      return interaction.reply({ content: "❌ Kein offenes Ticket in diesem Channel.", ephemeral: true });
+      return interaction.reply({ content: "❌ Kein offenes Ticket in diesem Channel.", flags: 64 });
     }
 
     if (ticket.claimedBy && ticket.claimedBy !== interaction.user.id) {
       return interaction.reply({
         content: `⚠️ Bereits übernommen von <@${ticket.claimedBy}>.`,
-        ephemeral: true,
+        flags: 64,
       });
     }
 
     ticket.claimedBy = interaction.user.id;
     await ticket.save();
 
-    const emojis = await getEmojis(interaction.guild);
+    const emojis = await getEmojis(interaction.guild, cfg);
     const eOk    = emojis.ok || "✅";
 
     return interaction.reply({
