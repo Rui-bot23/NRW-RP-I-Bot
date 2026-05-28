@@ -24,8 +24,19 @@ const guildConfigSchema = new Schema({
   rpMessageId:        { type: String, default: null },  // ID of the message to edit
   rpState:            { type: String, default: 'inactive' }, // 'active' | 'inactive'
 
-  // Custom emojis (uploaded to guild, stored as emojiId map)
+  // Custom emoji slots — set via /setup emojis
   customEmojis: { type: Map, of: String, default: {} },
+  emojiWelcome:  { type: String, default: null },  // shown in welcome header
+  emojiTicket:   { type: String, default: null },  // ticket panel + intro
+  emojiStaff:    { type: String, default: null },  // staff ping line
+  emojiMember:   { type: String, default: null },  // member/user line
+  emojiVerified: { type: String, default: null },  // rules line
+  emojiInfo:     { type: String, default: null },  // info line
+  emojiOk:       { type: String, default: null },  // success / rp start
+  emojiError:    { type: String, default: null },  // error / rp stop
+  emojiWarning:  { type: String, default: null },  // warning / priority
+  emojiRpStart:  { type: String, default: null },  // rp start header
+  emojiRpStop:   { type: String, default: null },  // rp stop header
 
   // RP Start/Stop
   rpChannelId:        { type: String, default: null },  // channel to post rp start/stop
