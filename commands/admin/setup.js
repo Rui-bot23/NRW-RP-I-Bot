@@ -188,6 +188,40 @@ const data = new SlashCommandBuilder()
       )
   )
 
+  // ── Logging group ────────────────────────────────────────────────────────
+  .addSubcommandGroup(group =>
+    group.setName("logging").setDescription("Server-Logging konfigurieren")
+      .addSubcommand(sub =>
+        sub.setName("toggle")
+          .setDescription("Logging ein/ausschalten")
+          .addBooleanOption(o => o.setName("aktiviert").setDescription("Ein oder Aus").setRequired(true))
+      )
+      .addSubcommand(sub =>
+        sub.setName("set")
+          .setDescription("Log-Channel für ein Event setzen")
+          .addStringOption(o =>
+            o.setName("event").setDescription("Event").setRequired(true)
+              .addChoices(
+                { name: "Nachricht gelöscht",  value: "messageDelete" },
+                { name: "Nachricht bearbeitet",value: "messageEdit"   },
+                { name: "Mitglied beigetreten",value: "memberJoin"    },
+                { name: "Mitglied verlassen",  value: "memberLeave"   },
+                { name: "Mitglied gebannt",    value: "memberBan"     },
+                { name: "Mitglied bearbeitet", value: "memberUpdate"  },
+                { name: "Rolle erstellt",      value: "roleCreate"    },
+                { name: "Rolle gelöscht",      value: "roleDelete"    },
+                { name: "Channel erstellt",    value: "channelCreate" },
+                { name: "Channel gelöscht",    value: "channelDelete" },
+                { name: "Voice Update",        value: "voiceUpdate"   },
+              )
+          )
+          .addChannelOption(o =>
+            o.setName("channel").setDescription("Log-Channel").setRequired(true)
+              .addChannelTypes(0)
+          )
+      )
+  )
+
   // ── Moderation group ─────────────────────────────────────────────────────
   .addSubcommandGroup(group =>
     group.setName("moderation").setDescription("Moderation konfigurieren")
@@ -237,6 +271,20 @@ async function execute(interaction) {
       if (sub === "banner")   return await welcomeBanner(interaction, guildId);
       if (sub === "channels") return await welcomeChannels(interaction, guildId);
       if (sub === "test")     return await welcomeTest(interaction, cfg);
+    }
+
+    if (group === "logging") {
+      if (sub === "toggle") {
+        const on = interaction.options.getBoolean("aktiviert");
+        await updateGuildConfig(guildId, { "logging.enabled": on });
+        return interaction.editReply({ content: `✅ Logging ${on ? "aktiviert" : "deaktiviert"}.` });
+      }
+      if (sub === "set") {
+        const event = interaction.options.getString("event");
+        const ch    = interaction.options.getChannel("channel");
+        await updateGuildConfig(guildId, { [`logging.${event}`]: ch.id });
+        return interaction.editReply({ content: `✅ Log-Channel für **${event}** → ${ch}` });
+      }
     }
 
     if (group === "moderation") {
