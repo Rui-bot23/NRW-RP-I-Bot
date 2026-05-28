@@ -85,7 +85,7 @@ async function execute(interaction) {
   }
 
   // Get emojis
-  const emojis = await getEmojis(interaction.guild);
+  const emojis = await getEmojis(interaction.guild, cfg);
 
   // Build Components V2 message payload
   const payload = buildRpPayload(isStart, emojis, pingContent);
@@ -117,8 +117,8 @@ async function execute(interaction) {
 
 // ── Build Components V2 payload ───────────────────────────────────────────────
 function buildRpPayload(isStart, emojis, pingContent) {
-  const statusEmoji  = isStart ? (emojis.ok      || "🟢") : (emojis.error   || "🔴");
-  const headerEmoji  = isStart ? (emojis.top      || "🎮") : (emojis.warning || "⚠️");
+  const statusEmoji  = isStart ? (emojis.ok     || "🟢") : (emojis.error  || "🔴");
+  const headerEmoji  = isStart ? (emojis.rpstart || "🎮") : (emojis.rpstop || "⚠️");
   const infoEmoji    = emojis.info    || "ℹ️";
   const staffEmoji   = emojis.staff   || "⭐";
   const memberEmoji  = emojis.member  || "👤";
