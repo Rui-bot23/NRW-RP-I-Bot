@@ -19,6 +19,7 @@ const { TicketCategory, Ticket } = require("../models");
 const { getGuildConfig, updateGuildConfig } = require("../utils/guildConfig");
 const { getEmojis } = require("../utils/emojiManager");
 const { isStaff, postTranscript } = require("../commands/admin/ticket");
+const { handleGiveawayJoin } = require("../commands/giveaway/giveaway");
 
 const once = false;
 
@@ -235,6 +236,11 @@ async function execute(interaction, client) {
     });
 
     return interaction.editReply({ content: `✅ Dein Ticket wurde erstellt: ${channel}` });
+  }
+
+  // ── Button — Giveaway Join ─────────────────────────────────────────────────
+  if (interaction.isButton() && interaction.customId === "nrw_giveaway_join") {
+    return handleGiveawayJoin(interaction);
   }
 
   // ── Button — Close ──────────────────────────────────────────────────────────
