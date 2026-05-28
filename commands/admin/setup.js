@@ -1,0 +1,447 @@
+/**
+ * /setup — Configure NRW:RP Bot from Discord
+ *
+ * Groups:
+ *   welcome  — channel, banner, rules/roles/ticket/fraktion channels
+ *   rp       — channel, allowed role, ping role
+ *
+ * Top-level:
+ *   /setup view  — show current config
+ *   /setup reset — reset a section
+ */
+
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ChannelType,
+} = require("discord.js");
+const { getGuildConfig, updateGuildConfig } = require("../../utils/guildConfig");
+
+const data = new SlashCommandBuilder()
+  .setName("setup")
+  .setDescription("NRW:RP Bot konfigurieren")
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+
+  // ── Welcome group ──────────────────────────────────────────────────────────
+  .addSubcommandGroup(group =>
+    group.setName("welcome").setDescription("Willkommensnachricht konfigurieren")
+
+      .addSubcommand(sub =>
+        sub.setName("channel")
+          .setDescription("Channel für Willkommensnachrichten setzen")
+          .addChannelOption(o =>
+            o.setName("channel").setDescription("Willkommens-Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("banner")
+          .setDescription("Banner-URL für die Willkommensnachricht setzen")
+          .addStringOption(o =>
+            o.setName("url").setDescription("Direkte Bild-URL (z.B. https://...)").setRequired(true)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("channels")
+          .setDescription("Alle Kanal-Erwähnungen in der Willkommensnachricht setzen")
+          .addChannelOption(o =>
+            o.setName("regeln").setDescription("Regelwerk-Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+          .addChannelOption(o =>
+            o.setName("rollen").setDescription("Rollen-Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+          .addChannelOption(o =>
+            o.setName("ticket").setDescription("Ticket-Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+          .addChannelOption(o =>
+            o.setName("fraktionen").setDescription("Fraktionen-Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("test")
+          .setDescription("Willkommensnachricht als Test für dich selbst senden")
+      )
+  )
+
+  // ── RP group ───────────────────────────────────────────────────────────────
+  .addSubcommandGroup(group =>
+    group.setName("rp").setDescription("RP Start/Stop konfigurieren")
+
+      .addSubcommand(sub =>
+        sub.setName("channel")
+          .setDescription("Channel für RP Start/Stop Nachrichten setzen")
+          .addChannelOption(o =>
+            o.setName("channel").setDescription("RP Announcements Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("role")
+          .setDescription("Rolle setzen, die /rp benutzen darf")
+          .addRoleOption(o =>
+            o.setName("role").setDescription("Erlaubte Rolle (z.B. @Moderator)").setRequired(true)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("pingrole")
+          .setDescription("Rolle setzen, die bei RP Start/Stop gepingt wird")
+          .addRoleOption(o =>
+            o.setName("role").setDescription("Ping-Rolle (z.B. @RP-Spieler)").setRequired(true)
+          )
+      )
+  )
+
+  // ── Tickets group ─────────────────────────────────────────────────────────
+  .addSubcommandGroup(group =>
+    group.setName("tickets").setDescription("Ticket-System konfigurieren")
+      .addSubcommand(sub =>
+        sub.setName("logs")
+          .setDescription("Transcript-Log-Channel setzen")
+          .addChannelOption(o =>
+            o.setName("channel").setDescription("Log-Channel").setRequired(true)
+              .addChannelTypes(ChannelType.GuildText)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("category")
+          .setDescription("Discord-Kategorie für Ticket-Channels setzen")
+          .addChannelOption(o =>
+            o.setName("kategorie").setDescription("Discord Kategorie").setRequired(true)
+              .addChannelTypes(ChannelType.GuildCategory)
+          )
+      )
+      .addSubcommand(sub =>
+        sub.setName("addrole")
+          .setDescription("Support-Rolle hinzufügen")
+          .addRoleOption(o => o.setName("role").setDescription("Support-Rolle").setRequired(true))
+      )
+      .addSubcommand(sub =>
+        sub.setName("removerole")
+          .setDescription("Support-Rolle entfernen")
+          .addRoleOption(o => o.setName("role").setDescription("Rolle entfernen").setRequired(true))
+      )
+      .addSubcommand(sub =>
+        sub.setName("options")
+          .setDescription("Ticket-Optionen setzen")
+          .addIntegerOption(o => o.setName("max_per_user").setDescription("Max offene Tickets pro Nutzer (Standard 1)").setMinValue(1).setMaxValue(5))
+          .addBooleanOption(o => o.setName("dm_transcript").setDescription("Transcript per DM senden (Standard: ja)"))
+          .addIntegerOption(o => o.setName("close_delay").setDescription("Sekunden bis Channel gelöscht wird (Standard: 5)").setMinValue(0).setMaxValue(60))
+      )
+  )
+
+  // ── Top-level ──────────────────────────────────────────────────────────────
+  .addSubcommand(sub =>
+    sub.setName("view")
+      .setDescription("Aktuelle Bot-Konfiguration anzeigen")
+  )
+  .addSubcommand(sub =>
+    sub.setName("reset")
+      .setDescription("Einen Abschnitt zurücksetzen")
+      .addStringOption(o =>
+        o.setName("section").setDescription("Welchen Abschnitt?").setRequired(true)
+          .addChoices(
+            { name: "Welcome", value: "welcome" },
+            { name: "RP", value: "rp" },
+            { name: "Alles", value: "all" },
+          )
+      )
+  );
+
+// ── Execute ───────────────────────────────────────────────────────────────────
+async function execute(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const guildId  = interaction.guild.id;
+  const cfg      = await getGuildConfig(guildId);
+  const sub      = interaction.options.getSubcommand(false);
+  const group    = interaction.options.getSubcommandGroup(false);
+
+  try {
+    if (sub === "view")  return await handleView(interaction, cfg);
+    if (sub === "reset") return await handleReset(interaction, guildId);
+
+    if (group === "welcome") {
+      if (sub === "channel")  return await welcomeChannel(interaction, guildId);
+      if (sub === "banner")   return await welcomeBanner(interaction, guildId);
+      if (sub === "channels") return await welcomeChannels(interaction, guildId);
+      if (sub === "test")     return await welcomeTest(interaction, cfg);
+    }
+
+    if (group === "tickets") {
+      if (sub === "logs")       return await ticketLogs(interaction, guildId);
+      if (sub === "category")   return await ticketCategory(interaction, guildId);
+      if (sub === "addrole")    return await ticketRole(interaction, guildId, true);
+      if (sub === "removerole") return await ticketRole(interaction, guildId, false);
+      if (sub === "options")    return await ticketOptions(interaction, guildId, cfg);
+    }
+
+    if (group === "rp") {
+      if (sub === "channel")  return await rpChannel(interaction, guildId);
+      if (sub === "role")     return await rpRole(interaction, guildId);
+      if (sub === "pingrole") return await rpPingRole(interaction, guildId);
+    }
+  } catch (err) {
+    console.error("[SETUP]", err);
+    return interaction.editReply({ content: `❌ Fehler: ${err.message}` });
+  }
+}
+
+// ── View ──────────────────────────────────────────────────────────────────────
+async function handleView(interaction, cfg) {
+  const c = (id) => id ? `<#${id}>` : "❌ *Nicht gesetzt*";
+  const r = (id) => id ? `<@&${id}>` : "❌ *Nicht gesetzt*";
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2B2D31)
+    .setTitle("⚙️  NRW:RP Bot — Konfiguration")
+    .addFields(
+      {
+        name: "👋 Willkommen",
+        value: [
+          `**Channel:** ${c(cfg.welcomeChannelId)}`,
+          `**Banner:** ${cfg.welcomeBannerUrl ? `[Link](${cfg.welcomeBannerUrl})` : "❌ *Nicht gesetzt*"}`,
+          `**Regeln:** ${c(cfg.welcomeRulesChannel)}`,
+          `**Rollen:** ${c(cfg.welcomeRolesChannel)}`,
+          `**Ticket:** ${c(cfg.welcomeTicketChannel)}`,
+          `**Fraktionen:** ${c(cfg.welcomeFraktionChannel)}`,
+        ].join("\n"),
+        inline: false,
+      },
+      {
+        name: "🎫 Tickets",
+        value: [
+          `**Log-Channel:** ${c(cfg.ticketLogChannelId)}`,
+          `**Kategorie:** ${c(cfg.ticketCategoryId)}`,
+          `**Support-Rollen:** ${cfg.ticketSupportRoleIds?.length ? cfg.ticketSupportRoleIds.map(id => `<@&${id}>`).join(", ") : "❌ *Keine*"}`,
+          `**Max pro Nutzer:** ${cfg.ticketMaxPerUser ?? 1} · **DM Transcript:** ${cfg.ticketDmTranscript ? "✅" : "❌"} · **Delay:** ${cfg.ticketCloseDelay ?? 5}s`,
+        ].join("\n"),
+        inline: false,
+      },
+      {
+        name: "🎮 RP Start/Stop",
+        value: [
+          `**Channel:** ${c(cfg.rpChannelId)}`,
+          `**Erlaubte Rolle:** ${r(cfg.rpAllowedRoleId)}`,
+          `**Ping-Rolle:** ${r(cfg.rpPingRoleId)}`,
+        ].join("\n"),
+        inline: false,
+      }
+    )
+    .setFooter({ text: `Server: ${interaction.guild.name}` })
+    .setTimestamp();
+
+  return interaction.editReply({ embeds: [embed] });
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+async function handleReset(interaction, guildId) {
+  const section = interaction.options.getString("section");
+  const updates = {};
+
+  if (section === "welcome" || section === "all") {
+    Object.assign(updates, {
+      welcomeChannelId: null, welcomeBannerUrl: null,
+      welcomeRulesChannel: null, welcomeRolesChannel: null,
+      welcomeTicketChannel: null, welcomeFraktionChannel: null,
+    });
+  }
+  if (section === "rp" || section === "all") {
+    Object.assign(updates, {
+      rpChannelId: null, rpAllowedRoleId: null, rpPingRoleId: null,
+    });
+  }
+
+  await updateGuildConfig(guildId, updates);
+  return interaction.editReply({ content: `✅ Abschnitt **${section}** wurde zurückgesetzt.` });
+}
+
+// ── Welcome handlers ──────────────────────────────────────────────────────────
+async function welcomeChannel(interaction, guildId) {
+  const channel = interaction.options.getChannel("channel");
+  await updateGuildConfig(guildId, { welcomeChannelId: channel.id });
+  return interaction.editReply({ content: `✅ Willkommens-Channel gesetzt: ${channel}` });
+}
+
+async function welcomeBanner(interaction, guildId) {
+  const url = interaction.options.getString("url");
+  // Basic URL validation
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return interaction.editReply({ content: "❌ Bitte eine gültige URL eingeben (muss mit https:// beginnen)." });
+  }
+  await updateGuildConfig(guildId, { welcomeBannerUrl: url });
+  return interaction.editReply({ content: `✅ Banner-URL gesetzt:\n${url}` });
+}
+
+async function welcomeChannels(interaction, guildId) {
+  const regeln     = interaction.options.getChannel("regeln");
+  const rollen     = interaction.options.getChannel("rollen");
+  const ticket     = interaction.options.getChannel("ticket");
+  const fraktionen = interaction.options.getChannel("fraktionen");
+
+  await updateGuildConfig(guildId, {
+    welcomeRulesChannel:    regeln.id,
+    welcomeRolesChannel:    rollen.id,
+    welcomeTicketChannel:   ticket.id,
+    welcomeFraktionChannel: fraktionen.id,
+  });
+
+  return interaction.editReply({
+    content: [
+      "✅ Kanal-Erwähnungen gesetzt:",
+      `📖 Regeln: ${regeln}`,
+      `🏷️ Rollen: ${rollen}`,
+      `🎫 Ticket: ${ticket}`,
+      `⚔️ Fraktionen: ${fraktionen}`,
+    ].join("\n"),
+  });
+}
+
+async function welcomeTest(interaction, cfg) {
+  // Fires the same logic as guildMemberAdd but for the admin themselves
+  const member = interaction.member;
+
+  if (!cfg.welcomeChannelId) {
+    return interaction.editReply({ content: "❌ Kein Willkommens-Channel gesetzt. Bitte erst `/setup welcome channel` ausführen." });
+  }
+
+  const channel = interaction.guild.channels.cache.get(cfg.welcomeChannelId);
+  if (!channel) {
+    return interaction.editReply({ content: "❌ Willkommens-Channel nicht gefunden." });
+  }
+
+  const nickname = member.displayName || member.user.username;
+  const ch = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
+
+  if (cfg.welcomeBannerUrl) {
+    await channel.send({
+      content: `${member} *(Testvorschau)*`,
+      flags: 32768,
+      components: [
+        {
+          type: 17,
+          components: [
+            { type: 12, items: [{ media: { url: cfg.welcomeBannerUrl } }] },
+            { type: 10, content: `# Willkommen hier auf NRW:RP I German` },
+            { type: 14 },
+            {
+              type: 10,
+              content: [
+                `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch, damit du weißt, wie es weitergeht:`,
+                `1. Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
+                `2. Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
+                `3. Bei Fragen kannst du dann ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
+                `4. Fraktionen kannst du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel finden.`,
+                `5. Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
+              ].join("\n"),
+            },
+            { type: 14 },
+            { type: 10, content: `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German` },
+            { type: 14 },
+          ],
+        },
+      ],
+    });
+  } else {
+    const { EmbedBuilder } = require("discord.js");
+    const embed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setTitle("Willkommen hier auf NRW:RP I German")
+      .setDescription([
+        `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`,
+        `1. Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
+        `2. Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
+        `3. Bei Fragen kannst du dann ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
+        `4. Fraktionen kannst du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel finden.`,
+        `5. Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
+        ``,
+        `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!`,
+        `-# NRW:RP I German`,
+      ].join("\n"))
+      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+      .setTimestamp();
+
+    await channel.send({ content: `${member} *(Testvorschau)*`, embeds: [embed] });
+  }
+
+  return interaction.editReply({ content: `✅ Testvorschau wurde in ${channel} gesendet.` });
+}
+
+// ── RP handlers ───────────────────────────────────────────────────────────────
+async function rpChannel(interaction, guildId) {
+  const channel = interaction.options.getChannel("channel");
+  await updateGuildConfig(guildId, { rpChannelId: channel.id });
+  return interaction.editReply({ content: `✅ RP-Channel gesetzt: ${channel}` });
+}
+
+async function rpRole(interaction, guildId) {
+  const role = interaction.options.getRole("role");
+  await updateGuildConfig(guildId, { rpAllowedRoleId: role.id });
+  return interaction.editReply({ content: `✅ Erlaubte Rolle für /rp gesetzt: ${role}` });
+}
+
+async function rpPingRole(interaction, guildId) {
+  const role = interaction.options.getRole("role");
+  await updateGuildConfig(guildId, { rpPingRoleId: role.id });
+  return interaction.editReply({ content: `✅ Ping-Rolle gesetzt: ${role}` });
+}
+
+// ── Ticket handlers ──────────────────────────────────────────────────────────
+async function ticketLogs(interaction, guildId) {
+  const channel = interaction.options.getChannel("channel");
+  await updateGuildConfig(guildId, { ticketLogChannelId: channel.id });
+  return interaction.editReply({ content: `✅ Ticket Log-Channel gesetzt: ${channel}` });
+}
+
+async function ticketCategory(interaction, guildId) {
+  const cat = interaction.options.getChannel("kategorie");
+  await updateGuildConfig(guildId, { ticketCategoryId: cat.id });
+  return interaction.editReply({ content: `✅ Ticket-Kategorie gesetzt: **${cat.name}**` });
+}
+
+async function ticketRole(interaction, guildId, add) {
+  const role = interaction.options.getRole("role");
+  const cfg  = await getGuildConfig(guildId);
+  let roles  = [...(cfg.ticketSupportRoleIds || [])];
+
+  if (add) {
+    if (roles.includes(role.id)) return interaction.editReply({ content: `⚠️ ${role} ist bereits eine Support-Rolle.` });
+    roles.push(role.id);
+  } else {
+    if (!roles.includes(role.id)) return interaction.editReply({ content: `❌ ${role} ist keine Support-Rolle.` });
+    roles = roles.filter(id => id !== role.id);
+  }
+
+  await updateGuildConfig(guildId, { ticketSupportRoleIds: roles });
+  return interaction.editReply({ content: `✅ ${role} wurde ${add ? "hinzugefügt" : "entfernt"}.` });
+}
+
+async function ticketOptions(interaction, guildId, cfg) {
+  const updates = {};
+  const max   = interaction.options.getInteger("max_per_user");
+  const dm    = interaction.options.getBoolean("dm_transcript");
+  const delay = interaction.options.getInteger("close_delay");
+
+  if (max   !== null) updates.ticketMaxPerUser  = max;
+  if (dm    !== null) updates.ticketDmTranscript = dm;
+  if (delay !== null) updates.ticketCloseDelay   = delay;
+
+  if (!Object.keys(updates).length) return interaction.editReply({ content: "⚠️ Keine Änderungen angegeben." });
+  await updateGuildConfig(guildId, updates);
+
+  const lines = [];
+  if (max   !== null) lines.push(`**Max pro Nutzer:** ${max}`);
+  if (dm    !== null) lines.push(`**DM Transcript:** ${dm ? "✅" : "❌"}`);
+  if (delay !== null) lines.push(`**Schließ-Verzögerung:** ${delay}s`);
+  return interaction.editReply({ content: `✅ Ticket-Optionen aktualisiert:
+${lines.join("\n")}` });
+}
+
+module.exports = { data, execute };
+
+// NOTE: Ticket setup is handled via separate /setup ticket subcommands below.
+// Append the ticket subcommand group by patching the data builder at module load.
