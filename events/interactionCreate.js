@@ -17,6 +17,7 @@ const {
 } = require("discord.js");
 const { TicketCategory, Ticket } = require("../models");
 const { getGuildConfig, updateGuildConfig } = require("../utils/guildConfig");
+const { getEmojis } = require("../utils/emojiManager");
 const { isStaff, postTranscript } = require("../commands/admin/ticket");
 
 const once = false;
@@ -53,14 +54,17 @@ async function execute(interaction, client) {
     const cfg        = await getGuildConfig(interaction.guild.id);
 
     if (!category) {
-      return interaction.reply({ content: "❌ Diese Kategorie existiert nicht mehr. Bitte Admin kontaktieren.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Diese Kategorie existiert nicht mehr. Bitte Admin kontaktieren.",
+        ephemeral: true,
+      });
     }
 
     // Max tickets check
     const openCount = await Ticket.countDocuments({
       ownerId: interaction.user.id,
       guildId: interaction.guild.id,
-      status: "open",
+      status:  "open",
     });
     if (openCount >= (cfg.ticketMaxPerUser ?? 1)) {
       return interaction.reply({
@@ -105,6 +109,7 @@ async function execute(interaction, client) {
     const categoryId  = interaction.customId.replace("nrw_ticket_modal_", "");
     const category    = await TicketCategory.findOne({ categoryId });
     const cfg         = await getGuildConfig(interaction.guild.id);
+    const emojis      = await getEmojis(interaction.guild);
     const subject     = interaction.fields.getTextInputValue("ticket_subject");
     const description = interaction.fields.getTextInputValue("ticket_description");
 
@@ -129,7 +134,10 @@ async function execute(interaction, client) {
 
     // Permission overwrites
     const overwrites = [
-      { id: interaction.guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+      {
+        id: interaction.guild.roles.everyone.id,
+        deny: [PermissionsBitField.Flags.ViewChannel],
+      },
       {
         id: interaction.user.id,
         allow: [
@@ -178,16 +186,22 @@ async function execute(interaction, client) {
       description,
     });
 
-    // Intro embed
+    // Emojis for intro
+    const eTicket  = emojis.ticket  || "🎫";
+    const eInfo    = emojis.info    || "ℹ️";
+    const eStaff   = emojis.staff   || "⭐";
+    const eWarning = emojis.warning || "⚠️";
+
+    // Ticket intro embed
     const introEmbed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setTitle(`${category.emoji}  ${category.name} — \`${ticketId}\``)
+      .setTitle(`${eTicket}  ${category.name} — \`${ticketId}\``)
       .setDescription(
-        `Willkommen ${interaction.user}! Unser Support-Team wird sich so schnell wie möglich um dich kümmern.\n\n` +
-        `**Betreff:** ${subject}\n` +
-        `**Beschreibung:** ${description}`
+        `Willkommen <@${interaction.user.id}>! Unser Support-Team kümmert sich so schnell wie möglich um dich.\n\n` +
+        `${eInfo} **Betreff:** ${subject}\n` +
+        `${eInfo} **Beschreibung:** ${description}`
       )
-      .addFields({ name: "⚡ Priorität", value: "Normal", inline: true })
+      .addFields({ name: `${eWarning} Priorität`, value: "Normal", inline: true })
       .setFooter({ text: "NRW:RP I German" })
       .setTimestamp();
 
@@ -205,18 +219,22 @@ async function execute(interaction, client) {
     );
 
     // Build ping string
-    let pingContent = `${interaction.user}`;
+    const mentionIds = [interaction.user.id];
+    let pingContent  = `<@${interaction.user.id}>`;
     if (category.teamPingId) {
-      pingContent += ` | <@&${category.teamPingId}>`;
+      pingContent += ` <@&${category.teamPingId}>`;
     } else if (cfg.ticketSupportRoleIds?.length) {
-      pingContent += ` | <@&${cfg.ticketSupportRoleIds[0]}>`;
+      pingContent += ` <@&${cfg.ticketSupportRoleIds[0]}>`;
     }
 
-    await channel.send({ content: pingContent, embeds: [introEmbed], components: [actionRow] });
-
-    return interaction.editReply({
-      content: `✅ Dein Ticket wurde erstellt: ${channel}`,
+    await channel.send({
+      content: pingContent,
+      embeds: [introEmbed],
+      components: [actionRow],
+      allowedMentions: { users: [interaction.user.id], roles: category.teamPingId ? [category.teamPingId] : cfg.ticketSupportRoleIds?.slice(0, 1) || [] },
     });
+
+    return interaction.editReply({ content: `✅ Dein Ticket wurde erstellt: ${channel}` });
   }
 
   // ── Button — Close ──────────────────────────────────────────────────────────
@@ -239,11 +257,14 @@ async function execute(interaction, client) {
     ticket.closedAt = Date.now();
     await ticket.save();
 
+    const emojis = await getEmojis(interaction.guild);
+    const eError = emojis.error || "🔴";
+
     await interaction.editReply({
       embeds: [
         new EmbedBuilder()
           .setColor(0xED4245)
-          .setTitle("🔒  Ticket geschlossen")
+          .setTitle(`${eError}  Ticket geschlossen`)
           .setDescription(`Geschlossen von **${interaction.user.tag}**.`)
           .setTimestamp(),
       ],
@@ -258,7 +279,7 @@ async function execute(interaction, client) {
 
   // ── Button — Claim ──────────────────────────────────────────────────────────
   if (interaction.isButton() && interaction.customId.startsWith("nrw_ticket_claim_")) {
-    const cfg    = await getGuildConfig(interaction.guild.id);
+    const cfg = await getGuildConfig(interaction.guild.id);
     if (!isStaff(interaction.member, cfg)) {
       return interaction.reply({ content: "❌ Nur Staff kann Tickets übernehmen.", ephemeral: true });
     }
@@ -269,16 +290,23 @@ async function execute(interaction, client) {
     }
 
     if (ticket.claimedBy && ticket.claimedBy !== interaction.user.id) {
-      return interaction.reply({ content: `⚠️ Bereits übernommen von <@${ticket.claimedBy}>.`, ephemeral: true });
+      return interaction.reply({
+        content: `⚠️ Bereits übernommen von <@${ticket.claimedBy}>.`,
+        ephemeral: true,
+      });
     }
 
     ticket.claimedBy = interaction.user.id;
     await ticket.save();
+
+    const emojis = await getEmojis(interaction.guild);
+    const eOk    = emojis.ok || "✅";
+
     return interaction.reply({
       embeds: [
         new EmbedBuilder()
           .setColor(0x57F287)
-          .setDescription(`✋ ${interaction.user} kümmert sich jetzt um dieses Ticket.`)
+          .setDescription(`${eOk} <@${interaction.user.id}> kümmert sich jetzt um dieses Ticket.`)
           .setTimestamp(),
       ],
     });
