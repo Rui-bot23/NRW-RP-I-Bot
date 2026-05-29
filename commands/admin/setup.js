@@ -470,10 +470,10 @@ async function welcomeTest(interaction, cfg) {
       flags: 32768,
       allowedMentions: { users: [member.id] },
       components: [
-        { type: 10, content: `<@${member.id}> *(Testvorschau)*` },
         {
-          type: 17,
+          type: 17, // Container — only top-level component
           components: [
+            { type: 10, content: `<@${member.id}> *(Testvorschau)*` },
             { type: 12, items: [{ media: { url: cfg.welcomeBannerUrl } }] },
             { type: 10, content: `# ${memberEmoji} Willkommen hier auf NRW:RP I German` },
             { type: 14 },
