@@ -458,10 +458,14 @@ async function welcomeTest(interaction, cfg) {
     `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`,
     ``,
     `${verifiedEmoji} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-    `${memberEmoji} Hole dir dann eine Rolle in ${ch(cfg.welcomeRolesChannel)}, für Pings.`,
-    `${ticketEmoji} Bei Fragen kannst du ein Ticket im ${ch(cfg.welcomeTicketChannel)} Channel öffnen.`,
-    `${staffEmoji} Fraktionen findest du in unserem ${ch(cfg.welcomeFraktionChannel)} Channel.`,
-    `${infoEmoji} Bei Interesse kannst du dich auch gerne im Staff Team bewerben!`,
+    ``,
+    `${memberEmoji} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
+    ``,
+    `${ticketEmoji} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
+    ``,
+    `${staffEmoji} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
+    ``,
+    `${infoEmoji} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
   ].join("\n");
   const footer = `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
 
@@ -487,7 +491,17 @@ async function welcomeTest(interaction, cfg) {
     new TextDisplayBuilder().setContent(`# ${memberEmoji} Willkommen hier auf NRW:RP I German`)
   );
   container.addSeparatorComponents(new SeparatorBuilder());
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(mainText));
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`
+    )
+  );
+  container.addSeparatorComponents(new SeparatorBuilder().setDivider(false));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`${verifiedEmoji} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`${memberEmoji} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`${ticketEmoji} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`${staffEmoji} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`${infoEmoji} Bei Interesse kannst du dich auch im Staff Team bewerben!`));
   container.addSeparatorComponents(new SeparatorBuilder());
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(footer));
 
