@@ -200,6 +200,9 @@ function sidebarNav(guildId, active) {
     ["logging",    "📋", "Logging"],
     ["giveaways",  "🎉", "Giveaways"],
     ["messages",   "✏️", "Nachrichten"],
+    ["fraktion",   "🏛️", "Fraktionen"],
+    ["teamlist",   "👮", "Team Liste"],
+    ["modules",    "⚙️",  "Module"],
     ["staff",      "👮", "Staff Rollen"],
   ];
 
@@ -896,6 +899,189 @@ function createDashboard(client, config) {
     const roles = (cfg[field]||[]).filter(id => id !== roleId);
     await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: { [field]: roles } }, { upsert: true });
     res.redirect(`/guild/${req.params.id}/staff?removed=1`);
+  });
+
+  // ── Fraktionen ───────────────────────────────────────────────────────────
+  app.get("/guild/:id/fraktion", async (req, res) => {
+    const guild = requireGuild(req, res); if (!guild) return;
+    const { Fraktion } = require("../models");
+    const cfg      = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const fraktionen = await Fraktion.find({ guildId: req.params.id, active: true }).sort({ createdAt: 1 });
+    const n = req.query.saved ? "✅ Gespeichert!" : "";
+
+    const rows = fraktionen.map(f => `
+      <tr>
+        <td><strong>${f.name}</strong></td>
+        <td>${f.leitungId ? `<@${f.leitungId}>` : "—"}</td>
+        <td>${f.standort || "—"}</td>
+        <td>${"⚠️".repeat(f.warns)}${"⚪".repeat(Math.max(0,3-f.warns))} ${f.warns}/3</td>
+        <td>${f.discordLink ? `<a href="${f.discordLink}" target="_blank" style="color:var(--blue)">Link</a>` : "—"}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px">Keine aktiven Fraktionen</td></tr>`;
+
+    res.send(layout({ title: "Fraktionen", active: "fraktion", user: req.session.user, guildId: req.params.id, guildName: guild.name, guildIconUrl: guild.iconURL(), notice: n,
+      body: `
+        <form method="POST" action="/guild/${req.params.id}/fraktion/settings">
+          <div class="panel">
+            <div class="panel-header"><h2>🏛️ Fraktions-Einstellungen</h2></div>
+            <div class="form-grid">
+              ${field("📋 Ankündigungs-Channel", "fraktionAnnounceChannelId", cfg.fraktionAnnounceChannelId, guild)}
+              ${field("📊 Listen-Channel", "fraktionListChannelId", cfg.fraktionListChannelId, guild)}
+              ${field("🔑 Erlaubte Rolle (/frak commands)", "fraktionAllowedRoleId", cfg.fraktionAllowedRoleId, guild, "role")}
+            </div>
+            <button type="submit" class="btn btn-primary btn-save">💾 Speichern</button>
+          </div>
+        </form>
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-header"><h2>Aktive Fraktionen (${fraktionen.length})</h2><p>Verwalte Fraktionen über Discord-Commands.</p></div>
+          <table class="table">
+            <thead><tr><th>Name</th><th>Leitung</th><th>Standort</th><th>Warns</th><th>Discord</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div style="margin-top:14px;padding:12px;background:rgba(255,255,255,.03);border-radius:var(--radius-sm);font-size:.85rem;color:var(--muted)">
+            <strong>Commands:</strong>
+            <code>/frakcreate</code> · <code>/frakdelete</code> · <code>/frakwarn</code> · <code>/frakupdate</code> · <code>/fraklist</code>
+          </div>
+        </div>
+      `,
+    }));
+  });
+
+  app.post("/guild/:id/fraktion/settings", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { fraktionAnnounceChannelId, fraktionListChannelId, fraktionAllowedRoleId } = req.body;
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id },
+      { $set: { fraktionAnnounceChannelId: fraktionAnnounceChannelId||null, fraktionListChannelId: fraktionListChannelId||null, fraktionAllowedRoleId: fraktionAllowedRoleId||null } },
+      { upsert: true }
+    );
+    res.redirect(`/guild/${req.params.id}/fraktion?saved=1`);
+  });
+
+  // ── Team Liste ────────────────────────────────────────────────────────────
+  app.get("/guild/:id/teamlist", async (req, res) => {
+    const guild = requireGuild(req, res); if (!guild) return;
+    const cfg   = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const n     = req.query.saved ? "✅ Gespeichert!" : req.query.removed ? "✅ Rolle entfernt!" : "";
+
+    await guild.members.fetch().catch(() => {});
+    const currentRoles = (cfg.teamlistRoleIds || [])
+      .map(id => guild.roles.cache.get(id))
+      .filter(Boolean)
+      .sort((a, b) => a.position - b.position);
+
+    const roleRows = currentRoles.map(role => `
+      <tr>
+        <td><span style="color:#${role.color.toString(16).padStart(6,"0")||"aaaaaa"}">${role.name}</span></td>
+        <td>${role.members.filter(m=>!m.user.bot).size} Mitglieder</td>
+        <td>Position ${role.position}</td>
+        <td><a href="/guild/${req.params.id}/teamlist/remove/${role.id}" class="btn btn-sm" style="color:var(--red);border-color:rgba(248,113,113,.3)">Entfernen</a></td>
+      </tr>
+    `).join("") || `<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Keine Rollen konfiguriert</td></tr>`;
+
+    const allRoles = guild.roles.cache
+      .filter(r => r.id !== guild.id && !(cfg.teamlistRoleIds||[]).includes(r.id))
+      .sort((a,b) => b.position - a.position)
+      .map(r => `<option value="${r.id}">${r.name} (${r.members.filter(m=>!m.user.bot).size})</option>`)
+      .join("");
+
+    res.send(layout({ title: "Team Liste", active: "teamlist", user: req.session.user, guildId: req.params.id, guildName: guild.name, guildIconUrl: guild.iconURL(), notice: n,
+      body: `
+        <div class="panel">
+          <div class="panel-header"><h2>👮 Team Liste Einstellungen</h2><p>Wähle die Rollen aus, die in der Teamliste angezeigt werden sollen. Sortierung: niedrigste Position zuerst (unten → oben).</p></div>
+          <form method="POST" action="/guild/${req.params.id}/teamlist/channel" style="display:flex;gap:10px;margin-bottom:16px">
+            ${field("📋 Listen-Channel", "teamlistChannelId", cfg.teamlistChannelId, guild)}
+            <div style="display:flex;align-items:flex-end"><button type="submit" class="btn btn-primary">💾 Setzen</button></div>
+          </form>
+          <hr class="divider">
+          <h3 style="margin-bottom:12px">Rolle hinzufügen</h3>
+          <form method="POST" action="/guild/${req.params.id}/teamlist/add" style="display:flex;gap:10px;margin-bottom:16px">
+            <select name="roleId" style="flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text)">
+              <option value="">— Rolle auswählen —</option>${allRoles}
+            </select>
+            <button type="submit" class="btn btn-primary">➕ Hinzufügen</button>
+          </form>
+          <table class="table">
+            <thead><tr><th>Rolle</th><th>Mitglieder</th><th>Position</th><th></th></tr></thead>
+            <tbody>${roleRows}</tbody>
+          </table>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <p style="font-size:.88rem;color:var(--muted)">Sende die Teamliste über Discord mit <code>/teamlist</code>.</p>
+        </div>
+      `,
+    }));
+  });
+
+  app.post("/guild/:id/teamlist/channel", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { teamlistChannelId } = req.body;
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: { teamlistChannelId: teamlistChannelId||null } }, { upsert: true });
+    res.redirect(`/guild/${req.params.id}/teamlist?saved=1`);
+  });
+
+  app.post("/guild/:id/teamlist/add", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { roleId } = req.body;
+    if (!roleId) return res.redirect(`/guild/${req.params.id}/teamlist`);
+    const cfg   = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const roles = [...(cfg.teamlistRoleIds||[])];
+    if (!roles.includes(roleId)) roles.push(roleId);
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: { teamlistRoleIds: roles } }, { upsert: true });
+    res.redirect(`/guild/${req.params.id}/teamlist?saved=1`);
+  });
+
+  app.get("/guild/:id/teamlist/remove/:roleId", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const cfg   = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const roles = (cfg.teamlistRoleIds||[]).filter(id => id !== req.params.roleId);
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: { teamlistRoleIds: roles } }, { upsert: true });
+    res.redirect(`/guild/${req.params.id}/teamlist?removed=1`);
+  });
+
+  // ── Modules ───────────────────────────────────────────────────────────────
+  app.get("/guild/:id/modules", async (req, res) => {
+    const guild = requireGuild(req, res); if (!guild) return;
+    const cfg   = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const n     = req.query.saved ? "✅ Gespeichert!" : "";
+    const mods  = cfg.modules || {};
+
+    const moduleList = [
+      { key: "welcome",  icon: "👋", label: "Willkommen",  desc: "Automatische Willkommensnachricht wenn jemand beitritt" },
+      { key: "tickets",  icon: "🎫", label: "Tickets",     desc: "Ticket-Panel, Kategorien und Staff-Funktionen" },
+      { key: "giveaway", icon: "🎉", label: "Giveaways",   desc: "Giveaway starten, beenden und reroll" },
+      { key: "automod",  icon: "🤖", label: "AutoMod",     desc: "Anti-Link, Anti-Spam und Anti-Badwords" },
+      { key: "logging",  icon: "📋", label: "Logging",     desc: "Server-Events in Channels loggen" },
+      { key: "modlog",   icon: "🛡️", label: "Mod-Log",    desc: "Moderations-Aktionen loggen" },
+    ];
+
+    const toggles = moduleList.map(m => `
+      <div class="toggle-row">
+        <div class="info"><strong>${m.icon} ${m.label}</strong><p>${m.desc}</p></div>
+        <label class="toggle"><input type="checkbox" name="${m.key}" ${mods[m.key] !== false ? "checked" : ""}><span class="toggle-slider"></span></label>
+      </div>
+    `).join("");
+
+    res.send(layout({ title: "Module", active: "modules", user: req.session.user, guildId: req.params.id, guildName: guild.name, guildIconUrl: guild.iconURL(), notice: n,
+      body: `
+        <form method="POST" action="/guild/${req.params.id}/modules">
+          <div class="panel">
+            <div class="panel-header"><h2>⚙️ Module</h2><p>Aktiviere oder deaktiviere einzelne Bot-Funktionen für diesen Server.</p></div>
+            ${toggles}
+          </div>
+          <div style="margin-top:16px"><button type="submit" class="btn btn-primary btn-save">💾 Speichern</button></div>
+        </form>
+      `,
+    }));
+  });
+
+  app.post("/guild/:id/modules", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const body = req.body;
+    const keys = ["welcome","tickets","giveaway","automod","logging","modlog"];
+    const updates = {};
+    for (const k of keys) updates[`modules.${k}`] = body[k] === "on";
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: updates }, { upsert: true });
+    res.redirect(`/guild/${req.params.id}/modules?saved=1`);
   });
 
   // ── 404 ───────────────────────────────────────────────────────────────────
