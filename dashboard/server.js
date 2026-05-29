@@ -199,6 +199,8 @@ function sidebarNav(guildId, active) {
     ["automod",    "🤖", "AutoMod"],
     ["logging",    "📋", "Logging"],
     ["giveaways",  "🎉", "Giveaways"],
+    ["messages",   "✏️", "Nachrichten"],
+    ["staff",      "👮", "Staff Rollen"],
   ];
 
   const links = items.map(([slug, icon, label]) => {
@@ -742,6 +744,158 @@ function createDashboard(client, config) {
         </div>
       `,
     }));
+  });
+
+  // ── Messages ──────────────────────────────────────────────────────────────
+  app.get("/guild/:id/messages", async (req, res) => {
+    const guild = requireGuild(req, res); if (!guild) return;
+    const cfg   = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const n     = req.query.saved ? "✅ Gespeichert!" : "";
+
+    const tip = `<p style="font-size:.8rem;color:var(--muted);margin-top:6px">
+      Verfügbare Platzhalter: <code>{nick}</code> (Nutzername) · <code>{rules}</code> · <code>{roles}</code> · <code>{ticket}</code> · <code>{fraktionen}</code>
+    </p>`;
+
+    res.send(layout({ title: "Nachrichten", active: "messages", user: req.session.user, guildId: req.params.id, guildName: guild.name, guildIconUrl: guild.iconURL(), notice: n,
+      body: `
+        <form method="POST" action="/guild/${req.params.id}/messages">
+          <div class="panel">
+            <div class="panel-header"><h2>👋 Willkommensnachricht</h2><p>Passe den Text der Willkommensnachricht an.</p></div>
+            ${tip}
+            <div style="display:grid;gap:14px;margin-top:14px">
+              <div class="field"><label>Titel</label><input type="text" name="welcomeTitle" value="${cfg.welcomeTitle||"Willkommen hier auf NRW:RP I German"}" placeholder="Willkommen hier auf NRW:RP I German"></div>
+              <div class="field"><label>Intro-Zeile</label><input type="text" name="welcomeIntro" value="${cfg.welcomeIntro||"Schön, dass du da bist **{nick}**! Bitte lies dir diese Infos aufmerksam durch:"}" placeholder="Schön, dass du da bist **{nick}**..."></div>
+              <div class="field"><label>Zeile 1 (Regelwerk)</label><input type="text" name="welcomeLine1" value="${cfg.welcomeLine1||"Lies dir unser {rules} durch."}"></div>
+              <div class="field"><label>Zeile 2 (Rollen)</label><input type="text" name="welcomeLine2" value="${cfg.welcomeLine2||"Hole dir eine Rolle in {roles} für Pings."}"></div>
+              <div class="field"><label>Zeile 3 (Ticket)</label><input type="text" name="welcomeLine3" value="${cfg.welcomeLine3||"Bei Fragen öffne ein Ticket in {ticket}."}"></div>
+              <div class="field"><label>Zeile 4 (Fraktionen)</label><input type="text" name="welcomeLine4" value="${cfg.welcomeLine4||"Fraktionen findest du in {fraktionen}."}"></div>
+              <div class="field"><label>Zeile 5 (Extra)</label><input type="text" name="welcomeLine5" value="${cfg.welcomeLine5||"Bei Interesse kannst du dich auch im Staff Team bewerben!"}"></div>
+              <div class="field"><label>Footer</label><textarea name="welcomeFooter">${(cfg.welcomeFooter||"Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German").replace(/\\n/g,"\n")}</textarea></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:16px">
+            <div class="panel-header"><h2>🎮 RP Start Nachricht</h2></div>
+            <div style="display:grid;gap:14px">
+              <div class="field"><label>Titel</label><input type="text" name="rpStartTitle" value="${cfg.rpStartTitle||"Roleplay Start"}"></div>
+              <div class="field"><label>Text</label><textarea name="rpStartText" style="min-height:100px">${(cfg.rpStartText||"Der Server ist ab jetzt moderiert und das Roleplay ist eroeffnet.\n\nDanke, dass du ein Teil der Community bist!\nViel Spass beim Spielen!").replace(/\\n/g,"\n")}</textarea></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:16px">
+            <div class="panel-header"><h2>🔴 RP Stop Nachricht</h2></div>
+            <div style="display:grid;gap:14px">
+              <div class="field"><label>Titel</label><input type="text" name="rpStopTitle" value="${cfg.rpStopTitle||"Roleplay Stop"}"></div>
+              <div class="field"><label>Text</label><textarea name="rpStopText" style="min-height:100px">${(cfg.rpStopText||"Der Server ist nicht mehr moderiert und das Roleplay ist beendet.\n\nDanke, dass du dabei warst!\nBis zum naechsten Mal!").replace(/\\n/g,"\n")}</textarea></div>
+            </div>
+          </div>
+          <div style="margin-top:16px"><button type="submit" class="btn btn-primary btn-save">💾 Speichern</button></div>
+        </form>
+      `,
+    }));
+  });
+
+  app.post("/guild/:id/messages", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { welcomeTitle, welcomeIntro, welcomeLine1, welcomeLine2, welcomeLine3, welcomeLine4, welcomeLine5, welcomeFooter, rpStartTitle, rpStartText, rpStopTitle, rpStopText } = req.body;
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id },
+      { $set: { welcomeTitle, welcomeIntro, welcomeLine1, welcomeLine2, welcomeLine3, welcomeLine4, welcomeLine5, welcomeFooter, rpStartTitle, rpStartText, rpStopTitle, rpStopText } },
+      { upsert: true }
+    );
+    res.redirect(`/guild/${req.params.id}/messages?saved=1`);
+  });
+
+  // ── Staff Roles ───────────────────────────────────────────────────────────
+  app.get("/guild/:id/staff", async (req, res) => {
+    const guild = requireGuild(req, res); if (!guild) return;
+    const cfg   = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const n     = req.query.saved ? "✅ Gespeichert!" : req.query.removed ? "✅ Rolle entfernt!" : "";
+
+    const supportRoles = cfg.ticketSupportRoleIds || [];
+    const reviewAdmins = cfg.reviewAdminRoleIds   || [];
+
+    const supportRows = supportRoles.map(id => {
+      const role = guild.roles.cache.get(id);
+      return `<tr>
+        <td>${role ? `<span style="color:#${role.hexColor||'fff'}">${role.name}</span>` : `<span style="color:var(--muted)">Unbekannte Rolle (${id})</span>`}</td>
+        <td>${role?.members.size || "?"} Mitglieder</td>
+        <td><a href="/guild/${req.params.id}/staff/remove/support/${id}" class="btn btn-sm" style="color:var(--red);border-color:rgba(248,113,113,.3)">Entfernen</a></td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:16px">Keine Support-Rollen konfiguriert</td></tr>`;
+
+    const reviewRows = reviewAdmins.map(id => {
+      const role = guild.roles.cache.get(id);
+      return `<tr>
+        <td>${role ? role.name : `Unbekannte Rolle (${id})`}</td>
+        <td><a href="/guild/${req.params.id}/staff/remove/review/${id}" class="btn btn-sm" style="color:var(--red);border-color:rgba(248,113,113,.3)">Entfernen</a></td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="2" style="color:var(--muted);text-align:center;padding:16px">Keine Review-Admin-Rollen konfiguriert</td></tr>`;
+
+    res.send(layout({ title: "Staff Rollen", active: "staff", user: req.session.user, guildId: req.params.id, guildName: guild.name, guildIconUrl: guild.iconURL(), notice: n,
+      body: `
+        <div class="panel">
+          <div class="panel-header"><h2>👮 Support-Rollen</h2><p>Diese Rollen können Tickets sehen, beanspruchen und schließen.</p></div>
+          <form method="POST" action="/guild/${req.params.id}/staff/support" style="display:flex;gap:10px;margin-bottom:16px">
+            <select name="roleId" style="flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text)">
+              <option value="">— Rolle auswählen —</option>
+              ${guild.roles.cache.filter(r=>r.id!==guild.id&&!supportRoles.includes(r.id)).sort((a,b)=>b.position-a.position).map(r=>`<option value="${r.id}">${r.name}</option>`).join("")}
+            </select>
+            <button type="submit" class="btn btn-primary">➕ Hinzufügen</button>
+          </form>
+          <table class="table"><thead><tr><th>Rolle</th><th>Mitglieder</th><th></th></tr></thead><tbody>${supportRows}</tbody></table>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-header"><h2>⭐ Review-Admin-Rollen</h2><p>Diese Rollen können Reviews löschen und die Blacklist verwalten.</p></div>
+          <form method="POST" action="/guild/${req.params.id}/staff/review" style="display:flex;gap:10px;margin-bottom:16px">
+            <select name="roleId" style="flex:1;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text)">
+              <option value="">— Rolle auswählen —</option>
+              ${guild.roles.cache.filter(r=>r.id!==guild.id&&!reviewAdmins.includes(r.id)).sort((a,b)=>b.position-a.position).map(r=>`<option value="${r.id}">${r.name}</option>`).join("")}
+            </select>
+            <button type="submit" class="btn btn-primary">➕ Hinzufügen</button>
+          </form>
+          <table class="table"><thead><tr><th>Rolle</th><th></th></tr></thead><tbody>${reviewRows}</tbody></table>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <div class="panel-header"><h2>ℹ️ Hinweis</h2></div>
+          <p style="font-size:.88rem;color:var(--muted)">
+            Support-Rollen können auch über Discord mit <code>/setup tickets addrole</code> hinzugefügt werden.<br>
+            Review-Admin-Rollen über <code>/setup reviews adminrole action:Add</code>.
+          </p>
+        </div>
+      `,
+    }));
+  });
+
+  app.post("/guild/:id/staff/support", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { roleId } = req.body;
+    if (!roleId) return res.redirect(`/guild/${req.params.id}/staff`);
+    const cfg = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const roles = [...(cfg.ticketSupportRoleIds||[])];
+    if (!roles.includes(roleId)) roles.push(roleId);
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: { ticketSupportRoleIds: roles } }, { upsert: true });
+    res.redirect(`/guild/${req.params.id}/staff?saved=1`);
+  });
+
+  app.post("/guild/:id/staff/review", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { roleId } = req.body;
+    if (!roleId) return res.redirect(`/guild/${req.params.id}/staff`);
+    const cfg = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const roles = [...(cfg.reviewAdminRoleIds||[])];
+    if (!roles.includes(roleId)) roles.push(roleId);
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: { reviewAdminRoleIds: roles } }, { upsert: true });
+    res.redirect(`/guild/${req.params.id}/staff?saved=1`);
+  });
+
+  app.get("/guild/:id/staff/remove/:type/:roleId", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { type, roleId } = req.params;
+    const cfg   = await GuildConfig.findOne({ guildId: req.params.id }) || {};
+    const field = type === "support" ? "ticketSupportRoleIds" : "reviewAdminRoleIds";
+    const roles = (cfg[field]||[]).filter(id => id !== roleId);
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id }, { $set: { [field]: roles } }, { upsert: true });
+    res.redirect(`/guild/${req.params.id}/staff?removed=1`);
   });
 
   // ── 404 ───────────────────────────────────────────────────────────────────
