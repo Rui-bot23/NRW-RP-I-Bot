@@ -1,6 +1,6 @@
 /**
  * /teamlist — Postet die Teamliste
- * Auto-splits into multiple containers when component limit (40) is reached
+ * Each role = its own message to avoid component limits
  */
 
 const {
@@ -12,8 +12,6 @@ const {
   MessageFlags,
 } = require("discord.js");
 const { getGuildConfig, updateGuildConfig } = require("../../utils/guildConfig");
-
-const MAX_COMPONENTS = 38; // safe limit per container (Discord allows 40)
 
 const data = new SlashCommandBuilder()
   .setName("teamlist")
@@ -45,106 +43,70 @@ async function execute(interaction) {
     return interaction.editReply({ content: "❌ Keine Rollen konfiguriert. Füge sie im Dashboard unter **Team Liste** hinzu." });
   }
 
-  // Fetch all members
   await interaction.guild.members.fetch();
 
-  // Sort roles by position (lowest first)
   const roles = roleIds
     .map(id => interaction.guild.roles.cache.get(id))
     .filter(Boolean)
     .sort((a, b) => a.position - b.position);
 
-  // ── Build all text blocks first ───────────────────────────────────────────
-  const blocks = []; // each block = { type: "header"|"role"|"footer", content }
-
-  blocks.push({
-    type: "header",
-    content: `# 👮 ${interaction.guild.name} | Teamliste`,
+  // ── Header message ────────────────────────────────────────────────────────
+  await targetChannel.send({
+    components: [
+      new ContainerBuilder()
+        .setAccentColor(0x5865F2)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`# 👮 ${interaction.guild.name} | Teamliste`)
+        )
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `-# ${roles.length} Rollen • <t:${Math.floor(Date.now() / 1000)}:R>`
+          )
+        ),
+    ],
+    flags: MessageFlags.IsComponentsV2,
   });
 
+  // ── One message per role ──────────────────────────────────────────────────
   for (const role of roles) {
     const members = role.members
       .filter(m => !m.user.bot)
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
     const plural = members.size !== 1 ? "Mitglieder" : "Mitglied";
-    const memberLines = members.size > 0
-      ? [...members.values()].map(m => `▸ ${m.toString()}`).join("\n")
-      : "*Keine Mitglieder*";
 
-    blocks.push({
-      type: "role",
-      header: "▶ " + role.toString() + " **(" + members.size + " " + plural + ")**",
-      members: memberLines,
-    });
-  }
+    // Split members into chunks of 15 to stay safe within one container
+    const memberArray = [...members.values()];
+    const CHUNK = 15;
 
-  blocks.push({
-    type: "footer",
-    content: `-# NRW:RP I German • ${roles.length} Rollen • <t:${Math.floor(Date.now() / 1000)}:R>`,
-  });
+    for (let i = 0; i < Math.max(1, Math.ceil(memberArray.length / CHUNK)); i++) {
+      const chunk = memberArray.slice(i * CHUNK, (i + 1) * CHUNK);
+      const isFirst = i === 0;
 
-  // ── Pack blocks into containers respecting the 40-component limit ─────────
-  const containers = [];
-  let current = new ContainerBuilder().setAccentColor(0x5865F2);
-  let count = 0;
+      const memberLines = chunk.length > 0
+        ? chunk.map(m => `▸ ${m.toString()}`).join("\n")
+        : "*Keine Mitglieder*";
 
-  function flush() {
-    if (count > 0) {
-      containers.push(current);
-      current = new ContainerBuilder().setAccentColor(0x5865F2);
-      count = 0;
+      const header = isFirst
+        ? "▶ " + role.toString() + " **(" + members.size + " " + plural + ")**"
+        : "▶ " + role.toString() + " *(Fortsetzung)*";
+
+      const container = new ContainerBuilder()
+        .setAccentColor(role.color || 0x5865F2)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(header))
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(memberLines));
+
+      await targetChannel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     }
-  }
-
-  function addText(content) {
-    // Each TextDisplay = 1 component
-    if (count + 1 > MAX_COMPONENTS) flush();
-    current.addTextDisplayComponents(new TextDisplayBuilder().setContent(content));
-    count++;
-  }
-
-  function addSep() {
-    // Separator = 1 component
-    if (count + 1 > MAX_COMPONENTS) flush();
-    current.addSeparatorComponents(new SeparatorBuilder());
-    count++;
-  }
-
-  for (const block of blocks) {
-    if (block.type === "header") {
-      addText(block.content);
-      addSep();
-    } else if (block.type === "footer") {
-      addSep();
-      addText(block.content);
-    } else {
-      // Role block: header + separator + members = 3 components minimum
-      // If members are very long, split across containers
-      addText(block.header);
-      addSep();
-      addText(block.members);
-    }
-  }
-
-  flush();
-
-  // ── Send all containers in one or more messages ───────────────────────────
-  // Discord allows up to 10 top-level components per message
-  const MAX_PER_MSG = 10;
-  let sent = 0;
-
-  for (let i = 0; i < containers.length; i += MAX_PER_MSG) {
-    const chunk = containers.slice(i, i + MAX_PER_MSG);
-    await targetChannel.send({
-      components: chunk,
-      flags: MessageFlags.IsComponentsV2,
-    });
-    sent++;
   }
 
   await interaction.editReply({
-    content: `✅ Teamliste wurde in ${targetChannel} gepostet. (${sent} Nachricht${sent !== 1 ? "en" : ""}, ${roles.length} Rollen)`,
+    content: `✅ Teamliste in ${targetChannel} gepostet. (${roles.length} Rollen)`,
   });
 }
 
