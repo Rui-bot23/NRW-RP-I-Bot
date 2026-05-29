@@ -54,16 +54,20 @@ async function execute(member, client) {
 
     container.addSeparatorComponents(new SeparatorBuilder());
 
-    // Main content
+    // Main content with blank lines between each item
     container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         [
           `Schön, dass du da bist **${nick}**! Bitte lies dir diese Infos aufmerksam durch:`,
           ``,
           `${eVerified} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
+          ``,
           `${eMember} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
+          ``,
           `${eTicket} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
+          ``,
           `${eStaff} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
+          ``,
           `${eInfo} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
         ].join("\n")
       )
