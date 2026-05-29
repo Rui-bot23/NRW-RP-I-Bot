@@ -180,11 +180,6 @@ function buildAnnouncement(cfg, type, vars, ping = null, pingRoleIds = []) {
   const container = new ContainerBuilder()
     .setAccentColor(color);
 
-  // Ping goes INSIDE the container as first text component
-  if (ping) {
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(ping));
-  }
-
   container
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${sign} ${title}`))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${sign} ${body}`))
