@@ -1,16 +1,16 @@
 /**
- * /rp start  — Postet oder aktualisiert die RP-Nachricht auf "aktiv"
- * /rp stop   — Aktualisiert die bestehende RP-Nachricht auf "inaktiv"
- * /rp status — Zeigt den aktuellen RP-Status
- *
- * Die Nachricht wird beim ersten Mal gepostet und danach immer nur editiert.
- * Verwendet Components V2 (flags: 32768).
+ * /rp start | stop | status
+ * Uses proper ContainerBuilder classes per official discord.js docs
  */
 
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   EmbedBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
 } = require("discord.js");
 const { getGuildConfig, updateGuildConfig } = require("../../utils/guildConfig");
 const { getEmojis } = require("../../utils/emojiManager");
@@ -34,10 +34,7 @@ async function execute(interaction) {
     : false;
 
   if (!isAdmin && !hasRole) {
-    return interaction.reply({
-      content: "❌ Du hast keine Berechtigung, den RP-Status zu ändern.",
-      flags: 64,
-    });
+    return interaction.reply({ content: "❌ Du hast keine Berechtigung, den RP-Status zu ändern.", flags: 64 });
   }
 
   // ── Status ──────────────────────────────────────────────────────────────────
@@ -48,10 +45,7 @@ async function execute(interaction) {
         new EmbedBuilder()
           .setColor(active ? 0x57F287 : 0xED4245)
           .setTitle("RP Status")
-          .setDescription(active
-            ? "🟢 Das Roleplay ist aktuell **aktiv**."
-            : "🔴 Das Roleplay ist aktuell **inaktiv**."
-          )
+          .setDescription(active ? "🟢 Das Roleplay ist aktuell **aktiv**." : "🔴 Das Roleplay ist aktuell **inaktiv**.")
           .setTimestamp(),
       ],
       flags: 64,
@@ -64,19 +58,13 @@ async function execute(interaction) {
     : interaction.channel;
 
   if (!channel) {
-    return interaction.reply({
-      content: "❌ RP-Channel nicht gefunden. Bitte `/setup rp channel` ausführen.",
-      flags: 64,
-    });
+    return interaction.reply({ content: "❌ RP-Channel nicht gefunden. Bitte `/setup rp channel` ausführen.", flags: 64 });
   }
 
-  const isStart       = sub === "start";
-  const newState      = isStart ? "active" : "inactive";
-  const pingContent   = cfg.rpPingRoleId ? `<@&${cfg.rpPingRoleId}>` : null;
+  const isStart = sub === "start";
 
   await interaction.deferReply({ flags: 64 });
 
-  // Guard against double-trigger
   if (isStart && cfg.rpState === "active") {
     return interaction.editReply({ content: "⚠️ Das Roleplay ist bereits aktiv." });
   }
@@ -84,48 +72,16 @@ async function execute(interaction) {
     return interaction.editReply({ content: "⚠️ Das Roleplay ist bereits inaktiv." });
   }
 
-  // Get emojis
   const emojis = await getEmojis(interaction.guild, cfg);
 
-  // Build Components V2 message payload
-  const payload = buildRpPayload(isStart, emojis, pingContent);
+  // ── Build Components V2 payload ─────────────────────────────────────────────
+  const pingRoleId = cfg.rpPingRoleId;
 
-  // ── Edit existing message OR post new one ───────────────────────────────────
-  let posted = false;
-  if (cfg.rpMessageId) {
-    try {
-      const existing = await channel.messages.fetch(cfg.rpMessageId);
-      await existing.edit(payload);
-      posted = true;
-    } catch {
-      // Message was deleted — fall through to post new one
-    }
-  }
-
-  if (!posted) {
-    const msg = await channel.send(payload);
-    await updateGuildConfig(guildId, { rpMessageId: msg.id });
-  }
-
-  // Update state in DB
-  await updateGuildConfig(guildId, { rpState: newState });
-
-  return interaction.editReply({
-    content: `✅ RP **${isStart ? "Start" : "Stop"}** wurde ${posted ? "aktualisiert" : "gepostet"} in ${channel}.`,
-  });
-}
-
-// ── Build Components V2 payload ───────────────────────────────────────────────
-function buildRpPayload(isStart, emojis, pingContent) {
-  const statusEmoji  = isStart ? (emojis.ok     || "🟢") : (emojis.error  || "🔴");
-  const headerEmoji  = isStart ? (emojis.rpstart || "🎮") : (emojis.rpstop || "⚠️");
-  const infoEmoji    = emojis.info    || "ℹ️";
-  const staffEmoji   = emojis.staff   || "⭐";
-  const memberEmoji  = emojis.member  || "👤";
-
-  const title = isStart
-    ? `${headerEmoji} Roleplay Start`
-    : `${headerEmoji} Roleplay Stop`;
+  const statusEmoji = isStart ? (emojis.ok     || "🟢") : (emojis.error  || "🔴");
+  const headerEmoji = isStart ? (emojis.rpstart || "🎮") : (emojis.rpstop || "⚠️");
+  const infoEmoji   = emojis.info   || "ℹ️";
+  const staffEmoji  = emojis.staff  || "⭐";
+  const memberEmoji = emojis.member || "👤";
 
   const mainText = isStart
     ? [
@@ -145,38 +101,50 @@ function buildRpPayload(isStart, emojis, pingContent) {
         `Bis zum nächsten Mal! 👋`,
       ].join("\n");
 
-  const footer = `-# NRW:RP I German • ${isStart ? "Roleplay aktiv 🟢" : "Roleplay beendet 🔴"}`;
+  const container = new ContainerBuilder()
+    .setAccentColor(isStart ? 0x57F287 : 0xED4245)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`# ${headerEmoji} Roleplay ${isStart ? "Start" : "Stop"}`)
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(mainText)
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `-# NRW:RP I German • ${isStart ? "Roleplay aktiv 🟢" : "Roleplay beendet 🔴"}`
+      )
+    );
 
-  const components = [
-    // Optional ping above the container
-    ...(pingContent ? [{ type: 10, content: pingContent }] : []),
-    {
-      type: 17, // Container
-      accent_color: isStart ? 0x57F287 : 0xED4245,
-      components: [
-        {
-          type: 10,
-          content: `# ${title}`,
-        },
-        { type: 14 }, // Separator
-        {
-          type: 10,
-          content: mainText,
-        },
-        { type: 14 },
-        {
-          type: 10,
-          content: footer,
-        },
-      ],
-    },
-  ];
-
-  return {
-    flags: 32768, // IS_COMPONENTS_V2
-    allowedMentions: pingContent ? { roles: [pingContent.replace("<@&", "").replace(">", "")] } : { parse: [] },
-    components,
+  const payload = {
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+    ...(pingRoleId ? { content: `<@&${pingRoleId}>`, allowedMentions: { roles: [pingRoleId] } } : {}),
   };
+
+  // ── Edit existing or post new ───────────────────────────────────────────────
+  let posted = false;
+  if (cfg.rpMessageId) {
+    try {
+      const existing = await channel.messages.fetch(cfg.rpMessageId);
+      await existing.edit(payload);
+      posted = true;
+    } catch {
+      // Message deleted — post new
+    }
+  }
+
+  if (!posted) {
+    const msg = await channel.send(payload);
+    await updateGuildConfig(guildId, { rpMessageId: msg.id });
+  }
+
+  await updateGuildConfig(guildId, { rpState: isStart ? "active" : "inactive" });
+
+  return interaction.editReply({
+    content: `✅ RP **${isStart ? "Start" : "Stop"}** wurde ${posted ? "aktualisiert" : "gepostet"} in ${channel}.`,
+  });
 }
 
 module.exports = { data, execute };
