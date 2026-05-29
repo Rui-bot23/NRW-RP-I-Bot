@@ -177,6 +177,23 @@ async function endGiveawayById(messageId, guild) {
             .setTimestamp(),
         ],
       });
+      // DM winners
+      for (const winnerId of winners) {
+        try {
+          const winnerUser = await guild.members.fetch(winnerId);
+          await winnerUser.send({
+            embeds: [
+              new EmbedBuilder()
+                .setColor(0x57F287)
+                .setTitle("🎉 Du hast ein Giveaway gewonnen!")
+                .setDescription(`Du hast **${data.prize}** auf **${guild.name}** gewonnen!
+
+Herzlichen Glückwunsch! 🎊`)
+                .setTimestamp(),
+            ],
+          });
+        } catch {}
+      }
     } else {
       await channel.send({ content: "Leider keine Teilnehmer. Kein Gewinner. 😢" });
     }
