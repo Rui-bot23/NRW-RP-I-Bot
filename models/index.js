@@ -42,7 +42,7 @@ const guildConfigSchema = new Schema({
   // Fraktion list
   fraktionListChannelId:   { type: String, default: null },
   fraktionAnnounceChannelId: { type: String, default: null },
-  fraktionAllowedRoleId:   { type: String, default: null },  // who can use /frak commands
+  fraktionRoleIds:         { type: [String], default: [] },  // up to 2 roles: use commands + get pinged
   fraktionListMessageId:   { type: String, default: null },   // persistent list message
 
   // Welcome — customizable text
