@@ -57,15 +57,20 @@ function buildPing(cfg) {
 }
 
 // ── Build Fraktionsliste ──────────────────────────────────────────────────────
+// Each category gets its own container with its own accent color
 async function buildFrakListPayload(guildId, cfg) {
   const all = await Fraktion.find({ guildId, active: true }).sort({ name: 1 });
+  const components = [];
 
-  const container = new ContainerBuilder().setAccentColor(0x5865F2);
-
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# ${cfg.frakListTitle || "Fraktionsliste — NRW:RP I German"}`)
-  );
-  container.addSeparatorComponents(new SeparatorBuilder());
+  // Header container (neutral blue)
+  const header = new ContainerBuilder()
+    .setAccentColor(0x5865F2)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# ${cfg.frakListTitle || "Fraktionsliste — NRW:RP I German"}`
+      )
+    );
+  components.push(header);
 
   let hasAny = false;
 
@@ -74,9 +79,14 @@ async function buildFrakListPayload(guildId, cfg) {
     if (!fraks.length) continue;
     hasAny = true;
 
-    container.addTextDisplayComponents(
+    // New container per category with its own color
+    const katContainer = new ContainerBuilder()
+      .setAccentColor(KAT_COLORS[kat]);
+
+    katContainer.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`## ${katLabel(cfg, kat)}`)
     );
+    katContainer.addSeparatorComponents(new SeparatorBuilder());
 
     for (const frak of fraks) {
       const warnDots = "🔴".repeat(frak.warns) + "⚪".repeat(Math.max(0, 3 - frak.warns));
@@ -84,32 +94,38 @@ async function buildFrakListPayload(guildId, cfg) {
         `**${frak.name}**`,
         `> 👤 Leitung: ${frak.leitungId ? `<@${frak.leitungId}>` : "*Nicht gesetzt*"}`,
         `> 📍 Standort: ${frak.standort || "*Nicht gesetzt*"}`,
-        frak.discordLink     ? `> 🌐 Discord: ${frak.discordLink}`          : null,
+        frak.discordLink     ? `> 🌐 Discord: ${frak.discordLink}`              : null,
         frak.aufbauschutzBis ? `> 🛡️ Aufbauschutz bis: ${frak.aufbauschutzBis}` : null,
-        frak.testphaseBis    ? `> 🧪 Testphase bis: ${frak.testphaseBis}`   : null,
+        frak.testphaseBis    ? `> 🧪 Testphase bis: ${frak.testphaseBis}`       : null,
         `> ⚠️ Warns: ${frak.warns}/3 ${warnDots}`,
       ].filter(Boolean).join("\n");
 
-      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines));
+      katContainer.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines));
     }
 
-    container.addSeparatorComponents(new SeparatorBuilder());
+    components.push(katContainer);
   }
 
   if (!hasAny) {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent("*Aktuell sind noch keine Fraktionen eingetragen.*")
-    );
-    container.addSeparatorComponents(new SeparatorBuilder());
+    const empty = new ContainerBuilder()
+      .setAccentColor(0x5865F2)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent("*Aktuell sind noch keine Fraktionen eingetragen.*")
+      );
+    components.push(empty);
   }
 
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(
-      `-# ${cfg.frakListFooter || "NRW:RP I German"} • ${all.length} Fraktion${all.length !== 1 ? "en" : ""} aktiv`
-    )
-  );
+  // Footer container
+  const footer = new ContainerBuilder()
+    .setAccentColor(0x2B2D31)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `-# ${cfg.frakListFooter || "NRW:RP I German"} • ${all.length} Fraktion${all.length !== 1 ? "en" : ""} aktiv`
+      )
+    );
+  components.push(footer);
 
-  return { components: [container], flags: MessageFlags.IsComponentsV2 };
+  return { components, flags: MessageFlags.IsComponentsV2 };
 }
 
 // ── Update persistent list ────────────────────────────────────────────────────
