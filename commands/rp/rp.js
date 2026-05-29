@@ -104,10 +104,17 @@ async function execute(interaction) {
       )
     );
 
+  // Ping must go inside the container — content field not allowed with IS_COMPONENTS_V2
+  if (pingRoleId) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`<@&${pingRoleId}>`)
+    );
+  }
+
   const payload = {
     components: [container],
     flags: MessageFlags.IsComponentsV2,
-    ...(pingRoleId ? { content: `<@&${pingRoleId}>`, allowedMentions: { roles: [pingRoleId] } } : {}),
+    ...(pingRoleId ? { allowedMentions: { roles: [pingRoleId] } } : {}),
   };
 
   // ── Edit existing or post new ───────────────────────────────────────────────
