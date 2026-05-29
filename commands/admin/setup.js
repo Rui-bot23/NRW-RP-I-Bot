@@ -431,43 +431,51 @@ async function welcomeChannels(interaction, guildId) {
 }
 
 async function welcomeTest(interaction, cfg) {
-  // Fires the same logic as guildMemberAdd but for the admin themselves
   const { getEmojis } = require("../../utils/emojiManager");
+  const { fill } = require("../../events/guildMemberAdd");
   const member = interaction.member;
 
   if (!cfg.welcomeChannelId) {
-    return interaction.editReply({ content: "❌ Kein Willkommens-Channel gesetzt. Bitte erst `/setup welcome channel` ausführen." });
+    return interaction.editReply({ content: "❌ Kein Willkommens-Channel gesetzt." });
   }
-
   const channel = interaction.guild.channels.cache.get(cfg.welcomeChannelId);
-  if (!channel) {
-    return interaction.editReply({ content: "❌ Willkommens-Channel nicht gefunden." });
-  }
+  if (!channel) return interaction.editReply({ content: "❌ Willkommens-Channel nicht gefunden." });
 
   const nickname = member.displayName || member.user.username;
   const ch = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
+  const emojis = await getEmojis(interaction.guild, cfg);
 
-  const emojis      = await getEmojis(interaction.guild);
-  const ticketEmoji  = emojis.ticket   || "🎫";
-  const staffEmoji   = emojis.staff    || "⭐";
   const memberEmoji  = emojis.member   || "👤";
   const verifiedEmoji = emojis.verified || "✅";
+  const ticketEmoji  = emojis.ticket   || "🎫";
+  const staffEmoji   = emojis.staff    || "⭐";
   const infoEmoji    = emojis.info     || "ℹ️";
+  const eWelcome     = emojis.welcome  || emojis.member || "👤";
+
+  const vars = {
+    nick: nickname,
+    rules: ch(cfg.welcomeRulesChannel),
+    roles: ch(cfg.welcomeRolesChannel),
+    ticket: ch(cfg.welcomeTicketChannel),
+    fraktionen: ch(cfg.welcomeFraktionChannel),
+  };
+
+  const lines = [
+    { emoji: verifiedEmoji, text: cfg.welcomeLine1 || "Lies dir unser {rules} durch." },
+    { emoji: memberEmoji,   text: cfg.welcomeLine2 || "Hole dir eine Rolle in {roles} für Pings." },
+    { emoji: ticketEmoji,   text: cfg.welcomeLine3 || "Bei Fragen öffne ein Ticket in {ticket}." },
+    { emoji: staffEmoji,    text: cfg.welcomeLine4 || "Fraktionen findest du in {fraktionen}." },
+    { emoji: infoEmoji,     text: cfg.welcomeLine5 || "Bei Interesse kannst du dich auch im Staff Team bewerben!" },
+  ];
 
   const mainText = [
-    `Schön, dass du da bist **${nickname}**! Bitte lies dir diese Infos aufmerksam durch:`,
-    ``,
-    `${verifiedEmoji} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-    ``,
-    `${memberEmoji} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
-    ``,
-    `${ticketEmoji} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
-    ``,
-    `${staffEmoji} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
-    ``,
-    `${infoEmoji} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
-  ].join("\n");
-  const footer = `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
+    fill(cfg.welcomeIntro || "Schön, dass du da bist **{nick}**! Bitte lies dir diese Infos aufmerksam durch:", vars),
+    "",
+    ...lines.flatMap(l => [fill(`${l.emoji} ${l.text}`, vars), ""]),
+  ].join("\n").trimEnd();
+
+  const footer = `-# ${fill(cfg.welcomeFooter || "Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German", vars)}`;
+  const title  = fill(cfg.welcomeTitle || "Willkommen hier auf NRW:RP I German", vars);
 
   const {
     ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
@@ -488,7 +496,7 @@ async function welcomeTest(interaction, cfg) {
     );
   }
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`# ${memberEmoji} Willkommen hier auf NRW:RP I German`)
+    new TextDisplayBuilder().setContent(`# ${eWelcome} ${title}`)
   );
   container.addSeparatorComponents(new SeparatorBuilder());
   container.addTextDisplayComponents(
