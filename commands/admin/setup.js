@@ -465,39 +465,37 @@ async function welcomeTest(interaction, cfg) {
   ].join("\n");
   const footer = `-# Bitte halte dich an unsere Server Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
 
+  const {
+    ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
+    MediaGalleryBuilder, MediaGalleryItemBuilder, UnfurledMediaItemBuilder,
+    MessageFlags,
+  } = require("discord.js");
+
+  const container = new ContainerBuilder();
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`<@${member.id}> *(Testvorschau)*`)
+  );
   if (cfg.welcomeBannerUrl) {
-    await channel.send({
-      flags: 32768,
-      allowedMentions: { users: [member.id] },
-      components: [
-        {
-          type: 17, // Container — only top-level component
-          components: [
-            { type: 10, content: `<@${member.id}> *(Testvorschau)*` },
-            { type: 12, items: [{ media: { url: cfg.welcomeBannerUrl } }] },
-            { type: 10, content: `# ${memberEmoji} Willkommen hier auf NRW:RP I German` },
-            { type: 14 },
-            { type: 10, content: mainText },
-            { type: 14 },
-            { type: 10, content: footer },
-          ],
-        },
-      ],
-    });
-  } else {
-    const { EmbedBuilder } = require("discord.js");
-    const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
-      .setTitle(`${memberEmoji} Willkommen hier auf NRW:RP I German`)
-      .setDescription(mainText + "\n\n" + footer)
-      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-      .setTimestamp();
-    await channel.send({
-      content: `<@${member.id}> *(Testvorschau)*`,
-      embeds: [embed],
-      allowedMentions: { users: [member.id] },
-    });
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        new MediaGalleryItemBuilder()
+          .setMedia(new UnfurledMediaItemBuilder().setURL(cfg.welcomeBannerUrl))
+      )
+    );
   }
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`# ${memberEmoji} Willkommen hier auf NRW:RP I German`)
+  );
+  container.addSeparatorComponents(new SeparatorBuilder());
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(mainText));
+  container.addSeparatorComponents(new SeparatorBuilder());
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(footer));
+
+  await channel.send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+    allowedMentions: { users: [member.id] },
+  });
 
   return interaction.editReply({ content: `✅ Testvorschau wurde in ${channel} gesendet.` });
 }
