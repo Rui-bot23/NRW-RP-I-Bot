@@ -1,16 +1,6 @@
-/**
- * guildMemberAdd.js — Components V2 welcome
- * Uses proper builder classes per official discord.js docs
- */
-
 const {
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  MediaGalleryBuilder,
-  MediaGalleryItemBuilder,
-  UnfurledMediaItemBuilder,
-  EmbedBuilder,
+  ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
+  MediaGalleryBuilder, MediaGalleryItemBuilder, UnfurledMediaItemBuilder,
   MessageFlags,
 } = require("discord.js");
 const { getGuildConfig } = require("../utils/guildConfig");
@@ -37,80 +27,63 @@ async function execute(member, client) {
     const eStaff    = emojis.staff    || "⭐";
     const eInfo     = emojis.info     || "ℹ️";
 
+    // ── Always use Components V2 — banner is optional ─────────────────────────
+    const container = new ContainerBuilder();
+
+    // Ping
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`<@${member.id}>`)
+    );
+
+    // Banner — only if set
     if (cfg.welcomeBannerUrl) {
-      // ── Components V2 using proper builder classes ────────────────────────
-      const container = new ContainerBuilder()
-        // Ping inside the container
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`<@${member.id}>`)
+      container.addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(
+          new MediaGalleryItemBuilder()
+            .setMedia(new UnfurledMediaItemBuilder().setURL(cfg.welcomeBannerUrl))
         )
-        // Banner image
-        .addMediaGalleryComponents(
-          new MediaGalleryBuilder().addItems(
-            new MediaGalleryItemBuilder()
-              .setMedia(new UnfurledMediaItemBuilder().setURL(cfg.welcomeBannerUrl))
-          )
-        )
-        // Title
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`# ${eWelcome} Willkommen hier auf NRW:RP I German`)
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        // Main content
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            [
-              `Schön, dass du da bist **${nick}**! Bitte lies dir diese Infos aufmerksam durch:`,
-              ``,
-              `${eVerified} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-              `${eMember} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
-              `${eTicket} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
-              `${eStaff} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
-              `${eInfo} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
-            ].join("\n")
-          )
-        )
-        .addSeparatorComponents(new SeparatorBuilder())
-        // Footer
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `-# Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German`
-          )
-        );
-
-      await channel.send({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
-        allowedMentions: { users: [member.id] },
-      });
-
-    } else {
-      // ── Embed fallback (no banner configured) ────────────────────────────
-      const embed = new EmbedBuilder()
-        .setColor(0x2B2D31)
-        .setTitle(`${eWelcome} Willkommen hier auf NRW:RP I German`)
-        .setDescription(
-          [
-            `Schön, dass du da bist **${nick}**! Bitte lies dir diese Infos aufmerksam durch:`,
-            ``,
-            `${eVerified} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-            `${eMember} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
-            `${eTicket} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
-            `${eStaff} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
-            `${eInfo} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
-            ``,
-            `-# Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German`,
-          ].join("\n")
-        )
-        .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-        .setTimestamp();
-
-      await channel.send({
-        content: `<@${member.id}>`,
-        embeds: [embed],
-        allowedMentions: { users: [member.id] },
-      });
+      );
     }
+
+    // Title
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# ${eWelcome} Willkommen hier auf NRW:RP I German`
+      )
+    );
+
+    container.addSeparatorComponents(new SeparatorBuilder());
+
+    // Main content
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        [
+          `Schön, dass du da bist **${nick}**! Bitte lies dir diese Infos aufmerksam durch:`,
+          ``,
+          `${eVerified} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
+          `${eMember} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
+          `${eTicket} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
+          `${eStaff} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
+          `${eInfo} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
+        ].join("\n")
+      )
+    );
+
+    container.addSeparatorComponents(new SeparatorBuilder());
+
+    // Footer
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `-# Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German`
+      )
+    );
+
+    await channel.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+      allowedMentions: { users: [member.id] },
+    });
+
   } catch (err) {
     console.error("[WELCOME]", err);
   }
