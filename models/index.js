@@ -4,6 +4,26 @@ const { model, Schema } = require("mongoose");
 const guildConfigSchema = new Schema({
   guildId: { type: String, required: true, unique: true },
 
+  // Modules on/off
+  modules: {
+    welcome:   { type: Boolean, default: true },
+    tickets:   { type: Boolean, default: true },
+    giveaway:  { type: Boolean, default: true },
+    automod:   { type: Boolean, default: true },
+    logging:   { type: Boolean, default: true },
+    modlog:    { type: Boolean, default: true },
+  },
+
+  // Team list
+  teamlistRoleIds:   { type: [String], default: [] },  // ordered list of roles to show
+  teamlistChannelId: { type: String, default: null },
+
+  // Fraktion list
+  fraktionListChannelId:   { type: String, default: null },
+  fraktionAnnounceChannelId: { type: String, default: null },
+  fraktionAllowedRoleId:   { type: String, default: null },  // who can use /frak commands
+  fraktionListMessageId:   { type: String, default: null },   // persistent list message
+
   // Welcome — customizable text
   welcomeTitle:    { type: String, default: "Willkommen hier auf NRW:RP I German" },
   welcomeIntro:    { type: String, default: "Schön, dass du da bist **{nick}**! Bitte lies dir diese Infos aufmerksam durch:" },
@@ -123,6 +143,23 @@ const ticketSchema = new S2({
 });
 
 const TicketCategory = m2("NRWTicketCategory", ticketCategorySchema);
+
+const fraktionSchema = new S2({
+  guildId:        { type: String, required: true },
+  fraktionId:     { type: String, required: true, unique: true },
+  name:           { type: String, required: true },
+  leitungId:      { type: String, default: null },   // Discord user ID
+  discordLink:    { type: String, default: null },
+  standort:       { type: String, default: null },
+  aufbauschutzBis:{ type: String, default: null },   // stored as ISO string
+  testphaseBis:   { type: String, default: null },
+  warns:          { type: Number, default: 0 },
+  active:         { type: Boolean, default: true },
+  announceMsgId:  { type: String, default: null },   // message ID of the offiziell announcement
+  announceChannelId: { type: String, default: null },
+  createdAt:      { type: Number, default: () => Date.now() },
+});
+const Fraktion = m2("NRWFraktion", fraktionSchema);
 const Ticket         = m2("NRWTicket",         ticketSchema);
 
-module.exports = { GuildConfig, TicketCategory, Ticket };
+module.exports = { GuildConfig, TicketCategory, Ticket, Fraktion };
