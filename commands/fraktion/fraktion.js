@@ -149,7 +149,7 @@ async function updateFrakList(guild, cfg) {
 }
 
 // ── Build announcement (one container per category color) ─────────────────────
-function buildAnnouncement(cfg, type, vars) {
+function buildAnnouncement(cfg, type, vars, ping = null, pingRoleIds = []) {
   // Color based on category
   const katColor = KAT_COLORS[vars.kategorie] || 0x5865F2;
   let color;
@@ -173,7 +173,14 @@ function buildAnnouncement(cfg, type, vars) {
   const sign = type === "offiziell" ? "➕" : type === "aufgeloest" ? "➖" : "⚠️";
 
   const container = new ContainerBuilder()
-    .setAccentColor(color)
+    .setAccentColor(color);
+
+  // Ping goes INSIDE the container as first text component
+  if (ping) {
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(ping));
+  }
+
+  container
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${sign} ${title}`))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${sign} ${body}`))
     .addSeparatorComponents(new SeparatorBuilder());
@@ -203,7 +210,11 @@ function buildAnnouncement(cfg, type, vars) {
     );
   }
 
-  return { components: [container], flags: MessageFlags.IsComponentsV2 };
+  const payload = { components: [container], flags: MessageFlags.IsComponentsV2 };
+  if (ping && pingRoleIds.length) {
+    payload.allowedMentions = { roles: pingRoleIds };
+  }
+  return payload;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,10 +357,7 @@ async function executeCreate(interaction) {
     const ch = interaction.guild.channels.cache.get(cfg.fraktionAnnounceChannelId);
     if (ch) {
       const ping    = buildPing(cfg);
-      const payload = buildAnnouncement(cfg, "offiziell", { name, leitungId: leitung.id, standort, discord, aufbauschutz, testphase, kategorie });
-      // Add ping as content (outside components)
-      if (ping) payload.content = ping;
-      if (ping) payload.allowedMentions = { roles: cfg.fraktionRoleIds || [] };
+      const payload = buildAnnouncement(cfg, "offiziell", { name, leitungId: leitung.id, standort, discord, aufbauschutz, testphase, kategorie }, ping, cfg.fraktionRoleIds || []);
       const msg = await ch.send(payload);
       frak.announceChannelId = ch.id;
       frak.announceMsgId     = msg.id;
@@ -388,8 +396,7 @@ async function executeDelete(interaction) {
     const ch = interaction.guild.channels.cache.get(cfg.fraktionAnnounceChannelId);
     if (ch) {
       const ping    = buildPing(cfg);
-      const payload = buildAnnouncement(cfg, "aufgeloest", { name, grund, kategorie: frak.kategorie });
-      if (ping) { payload.content = ping; payload.allowedMentions = { roles: cfg.fraktionRoleIds || [] }; }
+      const payload = buildAnnouncement(cfg, "aufgeloest", { name, grund, kategorie: frak.kategorie }, ping, cfg.fraktionRoleIds || []);
       await ch.send(payload);
     }
   }
@@ -457,8 +464,7 @@ async function executeWarn(interaction) {
     const ch = interaction.guild.channels.cache.get(cfg.fraktionAnnounceChannelId);
     if (ch) {
       const ping    = buildPing(cfg);
-      const payload = buildAnnouncement(cfg, "warn", { name, warns: frak.warns, grund, kategorie: frak.kategorie });
-      if (ping) { payload.content = ping; payload.allowedMentions = { roles: cfg.fraktionRoleIds || [] }; }
+      const payload = buildAnnouncement(cfg, "warn", { name, warns: frak.warns, grund, kategorie: frak.kategorie }, ping, cfg.fraktionRoleIds || []);
       await ch.send(payload);
     }
   }
