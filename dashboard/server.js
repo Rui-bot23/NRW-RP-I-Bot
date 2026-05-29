@@ -906,42 +906,100 @@ function createDashboard(client, config) {
     const guild = requireGuild(req, res); if (!guild) return;
     const { Fraktion } = require("../models");
     const cfg      = await GuildConfig.findOne({ guildId: req.params.id }) || {};
-    const fraktionen = await Fraktion.find({ guildId: req.params.id, active: true }).sort({ createdAt: 1 });
+    const fraktionen = await Fraktion.find({ guildId: req.params.id, active: true }).sort({ name: 1 });
     const n = req.query.saved ? "✅ Gespeichert!" : "";
 
+    const katMap = { staatlich:"🏛️ Staatlich", illegal:"💀 Illegal", firma:"🏢 Firma", andere:"📋 Andere" };
     const rows = fraktionen.map(f => `
       <tr>
         <td><strong>${f.name}</strong></td>
+        <td><span class="badge badge-blue">${katMap[f.kategorie]||f.kategorie}</span></td>
         <td>${f.leitungId ? `<@${f.leitungId}>` : "—"}</td>
         <td>${f.standort || "—"}</td>
-        <td>${"⚠️".repeat(f.warns)}${"⚪".repeat(Math.max(0,3-f.warns))} ${f.warns}/3</td>
+        <td>${"⚠️".repeat(f.warns)}${"⚪".repeat(Math.max(0,3-f.warns))} <small>${f.warns}/3</small></td>
         <td>${f.discordLink ? `<a href="${f.discordLink}" target="_blank" style="color:var(--blue)">Link</a>` : "—"}</td>
       </tr>
-    `).join("") || `<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px">Keine aktiven Fraktionen</td></tr>`;
+    `).join("") || `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">Keine aktiven Fraktionen. Nutze /frakcreate im Discord.</td></tr>`;
+
+    const tip = `<p style="font-size:.8rem;color:var(--muted);margin-top:6px">Verfügbare Platzhalter: <code>{name}</code> <code>{warns}</code> <code>{grund}</code> <code>{leitungId}</code> <code>{standort}</code> <code>{discord}</code> <code>{aufbauschutz}</code> <code>{testphase}</code></p>`;
 
     res.send(layout({ title: "Fraktionen", active: "fraktion", user: req.session.user, guildId: req.params.id, guildName: guild.name, guildIconUrl: guild.iconURL(), notice: n,
       body: `
+        <!-- Channels & Roles -->
         <form method="POST" action="/guild/${req.params.id}/fraktion/settings">
           <div class="panel">
-            <div class="panel-header"><h2>🏛️ Fraktions-Einstellungen</h2></div>
+            <div class="panel-header"><h2>⚙️ Grundeinstellungen</h2></div>
             <div class="form-grid">
-              ${field("📋 Ankündigungs-Channel", "fraktionAnnounceChannelId", cfg.fraktionAnnounceChannelId, guild)}
               ${field("📊 Listen-Channel", "fraktionListChannelId", cfg.fraktionListChannelId, guild)}
-              ${field("🔑 Erlaubte Rolle (/frak commands)", "fraktionAllowedRoleId", cfg.fraktionAllowedRoleId, guild, "role")}
+              ${field("📣 Ankündigungs-Channel", "fraktionAnnounceChannelId", cfg.fraktionAnnounceChannelId, guild)}
+              ${field("🔑 Erlaubte Rolle", "fraktionAllowedRoleId", cfg.fraktionAllowedRoleId, guild, "role")}
+              <div class="field"><label>🖼️ Banner URL (Ankündigungen)</label><input type="text" name="frakBannerUrl" value="${cfg.frakBannerUrl||""}" placeholder="https://..."></div>
             </div>
             <button type="submit" class="btn btn-primary btn-save">💾 Speichern</button>
           </div>
         </form>
+
+        <!-- List customization -->
+        <form method="POST" action="/guild/${req.params.id}/fraktion/list-style" style="margin-top:16px">
+          <div class="panel">
+            <div class="panel-header"><h2>📊 Listen-Stil</h2><p>Anpassung der Fraktionsliste</p></div>
+            <div class="form-grid">
+              <div class="field"><label>Listen-Titel</label><input type="text" name="frakListTitle" value="${cfg.frakListTitle||"Fraktionsliste — NRW:RP I German"}"></div>
+              <div class="field"><label>Listen-Footer</label><input type="text" name="frakListFooter" value="${cfg.frakListFooter||"NRW:RP I German"}"></div>
+              <div class="field"><label>🏛️ Staatliche Fraktionen Label</label><input type="text" name="frakCatStaatlichLabel" value="${cfg.frakCatStaatlichLabel||"🏛️ Staatliche Fraktionen"}"></div>
+              <div class="field"><label>💀 Illegale Fraktionen Label</label><input type="text" name="frakCatIllegalLabel" value="${cfg.frakCatIllegalLabel||"💀 Illegale Fraktionen"}"></div>
+              <div class="field"><label>🏢 Firmen Label</label><input type="text" name="frakCatFirmaLabel" value="${cfg.frakCatFirmaLabel||"🏢 Firmen"}"></div>
+              <div class="field"><label>📋 Andere Label</label><input type="text" name="frakCatAndereLabel" value="${cfg.frakCatAndereLabel||"📋 Andere"}"></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-save">💾 Speichern</button>
+          </div>
+        </form>
+
+        <!-- Message customization -->
+        <form method="POST" action="/guild/${req.params.id}/fraktion/messages" style="margin-top:16px">
+          <div class="panel">
+            <div class="panel-header"><h2>✏️ Ankündigungen anpassen</h2></div>
+            ${tip}
+            <div style="display:grid;gap:20px;margin-top:14px">
+              <div>
+                <h3 style="margin-bottom:10px;color:var(--green)">➕ Fraktion Offiziell</h3>
+                <div class="form-grid">
+                  <div class="field"><label>Titel</label><input type="text" name="frakMsgOffiziellTitle" value="${cfg.frakMsgOffiziellTitle||"FRAKTION OFFIZIELL"}"></div>
+                  <div class="field"><label>Text</label><input type="text" name="frakMsgOffiziellBody" value="${cfg.frakMsgOffiziellBody||"Die Fraktion **{name}** ist nun offiziell."}"></div>
+                </div>
+              </div>
+              <div>
+                <h3 style="margin-bottom:10px;color:var(--red)">➖ Fraktion Aufgelöst</h3>
+                <div class="form-grid">
+                  <div class="field"><label>Titel</label><input type="text" name="frakMsgAufgeloestTitle" value="${cfg.frakMsgAufgeloestTitle||"FRAKTION AUFGELÖST"}"></div>
+                  <div class="field"><label>Text</label><input type="text" name="frakMsgAufgeloestBody" value="${cfg.frakMsgAufgeloestBody||"Die Fraktion **{name}** wurde offiziell aufgelöst."}"></div>
+                </div>
+              </div>
+              <div>
+                <h3 style="margin-bottom:10px;color:var(--yellow)">⚠️ Fraktion Verwarnt</h3>
+                <div class="form-grid">
+                  <div class="field"><label>Titel</label><input type="text" name="frakMsgWarnTitle" value="${cfg.frakMsgWarnTitle||"FRAKTION VERWARNT"}"></div>
+                  <div class="field"><label>Text</label><input type="text" name="frakMsgWarnBody" value="${cfg.frakMsgWarnBody||"Die Fraktion **{name}** hat **{warns}/3** Verwarnungen.\n**Grund:** {grund}"}"></div>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field"><label>Grußformel (alle Nachrichten)</label><textarea name="frakMsgGreeting">${(cfg.frakMsgGreeting||"Mit freundlichen Grüßen,\n@frakleitung").replace(/\\n/g,"\n")}</textarea></div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-save">💾 Speichern</button>
+          </div>
+        </form>
+
+        <!-- Active fractions list -->
         <div class="panel" style="margin-top:16px">
-          <div class="panel-header"><h2>Aktive Fraktionen (${fraktionen.length})</h2><p>Verwalte Fraktionen über Discord-Commands.</p></div>
+          <div class="panel-header"><h2>Aktive Fraktionen (${fraktionen.length})</h2></div>
           <table class="table">
-            <thead><tr><th>Name</th><th>Leitung</th><th>Standort</th><th>Warns</th><th>Discord</th></tr></thead>
+            <thead><tr><th>Name</th><th>Kategorie</th><th>Leitung</th><th>Standort</th><th>Warns</th><th>Discord</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
-          <div style="margin-top:14px;padding:12px;background:rgba(255,255,255,.03);border-radius:var(--radius-sm);font-size:.85rem;color:var(--muted)">
-            <strong>Commands:</strong>
-            <code>/frakcreate</code> · <code>/frakdelete</code> · <code>/frakwarn</code> · <code>/frakupdate</code> · <code>/fraklist</code>
-          </div>
+          <p style="margin-top:12px;font-size:.82rem;color:var(--muted)">
+            <code>/fraksetup</code> · <code>/frakcreate</code> · <code>/frakdelete</code> · <code>/frakwarn</code> · <code>/frakupdate</code> · <code>/fraklist</code>
+          </p>
         </div>
       `,
     }));
@@ -949,9 +1007,34 @@ function createDashboard(client, config) {
 
   app.post("/guild/:id/fraktion/settings", async (req, res) => {
     if (!req.session.user) return res.redirect("/login");
-    const { fraktionAnnounceChannelId, fraktionListChannelId, fraktionAllowedRoleId } = req.body;
+    const { fraktionAnnounceChannelId, fraktionListChannelId, fraktionAllowedRoleId, frakBannerUrl } = req.body;
     await GuildConfig.findOneAndUpdate({ guildId: req.params.id },
-      { $set: { fraktionAnnounceChannelId: fraktionAnnounceChannelId||null, fraktionListChannelId: fraktionListChannelId||null, fraktionAllowedRoleId: fraktionAllowedRoleId||null } },
+      { $set: {
+        fraktionAnnounceChannelId: fraktionAnnounceChannelId||null,
+        fraktionListChannelId:     fraktionListChannelId||null,
+        fraktionAllowedRoleId:     fraktionAllowedRoleId||null,
+        frakBannerUrl:             frakBannerUrl||null,
+      }},
+      { upsert: true }
+    );
+    res.redirect(`/guild/${req.params.id}/fraktion?saved=1`);
+  });
+
+  app.post("/guild/:id/fraktion/list-style", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { frakListTitle, frakListFooter, frakCatStaatlichLabel, frakCatIllegalLabel, frakCatFirmaLabel, frakCatAndereLabel } = req.body;
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id },
+      { $set: { frakListTitle, frakListFooter, frakCatStaatlichLabel, frakCatIllegalLabel, frakCatFirmaLabel, frakCatAndereLabel } },
+      { upsert: true }
+    );
+    res.redirect(`/guild/${req.params.id}/fraktion?saved=1`);
+  });
+
+  app.post("/guild/:id/fraktion/messages", async (req, res) => {
+    if (!req.session.user) return res.redirect("/login");
+    const { frakMsgOffiziellTitle, frakMsgOffiziellBody, frakMsgAufgeloestTitle, frakMsgAufgeloestBody, frakMsgWarnTitle, frakMsgWarnBody, frakMsgGreeting } = req.body;
+    await GuildConfig.findOneAndUpdate({ guildId: req.params.id },
+      { $set: { frakMsgOffiziellTitle, frakMsgOffiziellBody, frakMsgAufgeloestTitle, frakMsgAufgeloestBody, frakMsgWarnTitle, frakMsgWarnBody, frakMsgGreeting } },
       { upsert: true }
     );
     res.redirect(`/guild/${req.params.id}/fraktion?saved=1`);
