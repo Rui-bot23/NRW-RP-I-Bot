@@ -932,7 +932,8 @@ function createDashboard(client, config) {
             <div class="form-grid">
               ${field("📊 Listen-Channel", "fraktionListChannelId", cfg.fraktionListChannelId, guild)}
               ${field("📣 Ankündigungs-Channel", "fraktionAnnounceChannelId", cfg.fraktionAnnounceChannelId, guild)}
-              ${field("🔑 Erlaubte Rolle", "fraktionAllowedRoleId", cfg.fraktionAllowedRoleId, guild, "role")}
+              <div class="field"><label>🔑 Rolle 1 (Command + Ping)</label><select name="fraktionRole1"><option value="">— Nicht gesetzt —</option>${roleOpts(guild, (cfg.fraktionRoleIds||[])[0])}</select></div>
+              <div class="field"><label>🔑 Rolle 2 (optional, Command + Ping)</label><select name="fraktionRole2"><option value="">— Keine zweite Rolle —</option>${roleOpts(guild, (cfg.fraktionRoleIds||[])[1])}</select></div>
               <div class="field"><label>🖼️ Banner URL (Ankündigungen)</label><input type="text" name="frakBannerUrl" value="${cfg.frakBannerUrl||""}" placeholder="https://..."></div>
             </div>
             <button type="submit" class="btn btn-primary btn-save">💾 Speichern</button>
@@ -1007,12 +1008,13 @@ function createDashboard(client, config) {
 
   app.post("/guild/:id/fraktion/settings", async (req, res) => {
     if (!req.session.user) return res.redirect("/login");
-    const { fraktionAnnounceChannelId, fraktionListChannelId, fraktionAllowedRoleId, frakBannerUrl } = req.body;
+    const { fraktionAnnounceChannelId, fraktionListChannelId, fraktionRole1, fraktionRole2, frakBannerUrl } = req.body;
+    const roleIds = [fraktionRole1, fraktionRole2].filter(Boolean);
     await GuildConfig.findOneAndUpdate({ guildId: req.params.id },
       { $set: {
         fraktionAnnounceChannelId: fraktionAnnounceChannelId||null,
         fraktionListChannelId:     fraktionListChannelId||null,
-        fraktionAllowedRoleId:     fraktionAllowedRoleId||null,
+        fraktionRoleIds:           roleIds,
         frakBannerUrl:             frakBannerUrl||null,
       }},
       { upsert: true }
