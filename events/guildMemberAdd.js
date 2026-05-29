@@ -8,6 +8,11 @@ const { getEmojis } = require("../utils/emojiManager");
 
 const once = false;
 
+// Replace {placeholders} in text
+function fill(text, vars) {
+  return Object.entries(vars).reduce((t, [k, v]) => t.replaceAll(`{${k}}`, v), text || "");
+}
+
 async function execute(member, client) {
   try {
     const cfg = await getGuildConfig(member.guild.id);
@@ -27,7 +32,33 @@ async function execute(member, client) {
     const eStaff    = emojis.staff    || "⭐";
     const eInfo     = emojis.info     || "ℹ️";
 
-    // ── Always use Components V2 — banner is optional ─────────────────────────
+    // Placeholder variables
+    const vars = {
+      nick,
+      rules:      ch(cfg.welcomeRulesChannel),
+      roles:      ch(cfg.welcomeRolesChannel),
+      ticket:     ch(cfg.welcomeTicketChannel),
+      fraktionen: ch(cfg.welcomeFraktionChannel),
+    };
+
+    // Build lines with emoji prefixes
+    const lines = [
+      { emoji: eVerified, text: cfg.welcomeLine1 || "Lies dir unser {rules} durch." },
+      { emoji: eMember,   text: cfg.welcomeLine2 || "Hole dir eine Rolle in {roles} für Pings." },
+      { emoji: eTicket,   text: cfg.welcomeLine3 || "Bei Fragen öffne ein Ticket in {ticket}." },
+      { emoji: eStaff,    text: cfg.welcomeLine4 || "Fraktionen findest du in {fraktionen}." },
+      { emoji: eInfo,     text: cfg.welcomeLine5 || "Bei Interesse kannst du dich auch im Staff Team bewerben!" },
+    ];
+
+    const mainText = [
+      fill(cfg.welcomeIntro || "Schön, dass du da bist **{nick}**! Bitte lies dir diese Infos aufmerksam durch:", vars),
+      "",
+      ...lines.flatMap(l => [fill(`${l.emoji} ${l.text}`, vars), ""]),
+    ].join("\n").trimEnd();
+
+    const footer = `-# ${fill(cfg.welcomeFooter || "Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German", vars)}`;
+    const title  = fill(cfg.welcomeTitle || "Willkommen hier auf NRW:RP I German", vars);
+
     const container = new ContainerBuilder();
 
     // Ping
@@ -35,7 +66,7 @@ async function execute(member, client) {
       new TextDisplayBuilder().setContent(`<@${member.id}>`)
     );
 
-    // Banner — only if set
+    // Banner (optional)
     if (cfg.welcomeBannerUrl) {
       container.addMediaGalleryComponents(
         new MediaGalleryBuilder().addItems(
@@ -45,42 +76,12 @@ async function execute(member, client) {
       );
     }
 
-    // Title
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${eWelcome} Willkommen hier auf NRW:RP I German`
-      )
-    );
-
-    container.addSeparatorComponents(new SeparatorBuilder());
-
-    // Main content with blank lines between each item
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        [
-          `Schön, dass du da bist **${nick}**! Bitte lies dir diese Infos aufmerksam durch:`,
-          ``,
-          `${eVerified} Lies dir unsere ${ch(cfg.welcomeRulesChannel)} durch.`,
-          ``,
-          `${eMember} Hole dir eine Rolle in ${ch(cfg.welcomeRolesChannel)} für Pings.`,
-          ``,
-          `${eTicket} Bei Fragen öffne ein Ticket in ${ch(cfg.welcomeTicketChannel)}.`,
-          ``,
-          `${eStaff} Fraktionen findest du in ${ch(cfg.welcomeFraktionChannel)}.`,
-          ``,
-          `${eInfo} Bei Interesse kannst du dich auch im Staff Team bewerben!`,
-        ].join("\n")
-      )
-    );
-
-    container.addSeparatorComponents(new SeparatorBuilder());
-
-    // Footer
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `-# Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German`
-      )
-    );
+    container
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${eWelcome} ${title}`))
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(mainText))
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(footer));
 
     await channel.send({
       components: [container],
@@ -93,4 +94,4 @@ async function execute(member, client) {
   }
 }
 
-module.exports = { once, execute };
+module.exports = { once, execute, fill };
