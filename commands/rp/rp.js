@@ -117,24 +117,17 @@ async function execute(interaction) {
     ...(pingRoleId ? { allowedMentions: { roles: [pingRoleId] } } : {}),
   };
 
-  // ── Edit existing or post new ───────────────────────────────────────────────
-  let posted = false;
+  // ── Always post new message (so ping fires every time) + delete old ────────
+  // Delete previous message silently
   if (cfg.rpMessageId) {
     try {
-      const existing = await channel.messages.fetch(cfg.rpMessageId);
-      await existing.edit(payload);
-      posted = true;
-    } catch {
-      // Message deleted — post new
-    }
+      const old = await channel.messages.fetch(cfg.rpMessageId);
+      await old.delete();
+    } catch {}
   }
 
-  if (!posted) {
-    const msg = await channel.send(payload);
-    await updateGuildConfig(guildId, { rpMessageId: msg.id });
-  }
-
-  await updateGuildConfig(guildId, { rpState: isStart ? "active" : "inactive" });
+  const msg = await channel.send(payload);
+  await updateGuildConfig(guildId, { rpMessageId: msg.id, rpState: isStart ? "active" : "inactive" });
 
   return interaction.editReply({
     content: `✅ RP **${isStart ? "Start" : "Stop"}** wurde ${posted ? "aktualisiert" : "gepostet"} in ${channel}.`,
