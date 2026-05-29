@@ -161,21 +161,27 @@ async function executePanel(interaction) {
   const eStaff   = emojis.staff   || "⭐";
   const eOk      = emojis.ok      || "✅";
 
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setTitle(`${eTicket}  NRW:RP I German — Support`)
-    .setDescription(
-      `Hast du ein Problem oder eine Frage? Erstelle einfach ein Support-Ticket!\n\n` +
-      `**Wie funktioniert es?**\n` +
-      `${eOk} Wähle eine Kategorie aus dem Dropdown unten\n` +
-      `${eInfo} Gib deinen Namen und deinen Grund an\n` +
-      `${eStaff} Unser Support-Team kümmert sich schnellstmöglich um dich!\n\n` +
-      `**Verfügbare Kategorien:** ${cats.length}`
-    )
-    .setFooter({ text: "NRW:RP I German" })
-    .setTimestamp();
+  const {
+    ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags: MF,
+  } = require("discord.js");
 
-  let components = [];
+  const container = new ContainerBuilder()
+    .setAccentColor(0x5865F2)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# ${eTicket} NRW:RP I German — Support\n\n` +
+        `Hast du ein Problem oder eine Frage? Erstelle einfach ein Support-Ticket!\n\n` +
+        `${eOk} Wähle eine Kategorie aus dem Dropdown unten\n` +
+        `${eInfo} Gib deinen Namen und deinen Grund an\n` +
+        `${eStaff} Unser Support-Team kümmert sich schnellstmöglich um dich!`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`**Verfügbare Kategorien:** ${cats.length}`)
+    );
+
+  let msgComponents = [container];
   if (cats.length > 0) {
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
@@ -188,12 +194,10 @@ async function executePanel(interaction) {
           emoji: c.emoji,
         })))
     );
-    components = [row];
-  } else {
-    embed.setDescription(embed.data.description + "\n\n> ⚠️ Noch keine Kategorien. Benutze `/createticket`.");
+    msgComponents.push(row);
   }
 
-  await target.send({ embeds: [embed], components });
+  await target.send({ components: msgComponents, flags: MF.IsComponentsV2 });
   return interaction.editReply({ content: `✅ Ticket-Panel wurde in ${target} gesendet. (${cats.length} Kategorien)` });
 }
 
