@@ -1,5 +1,15 @@
 /**
- * guildMemberAdd.js — Components V2 welcome (requires discord.js 14.16.0+)
+ * guildMemberAdd.js — Components V2 welcome
+ * Mirrors the same structure as rp.js which is confirmed working.
+ *
+ * Key rules (learned from working RP implementation):
+ *  - flags: 32768 (IS_COMPONENTS_V2)
+ *  - NO top-level content field
+ *  - NO top-level embeds
+ *  - Ping goes INSIDE the container as the first text component
+ *  - MediaGallery (type 12) for banner
+ *  - Separator (type 14) between sections
+ *  - allowedMentions at the message level
  */
 
 const { EmbedBuilder } = require("discord.js");
@@ -16,7 +26,6 @@ async function execute(member, client) {
     const channel = member.guild.channels.cache.get(cfg.welcomeChannelId);
     if (!channel) return;
 
-    // Pass cfg directly so getEmojis skips the extra DB call
     const emojis = await getEmojis(member.guild, cfg);
     const nick   = member.displayName || member.user.username;
     const ch     = (id) => id ? `<#${id}>` : "`(nicht gesetzt)`";
@@ -41,32 +50,37 @@ async function execute(member, client) {
     const footer = `-# Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German`;
 
     if (cfg.welcomeBannerUrl) {
-      // ── Components V2 (discord.js 14.16.0+ required) ────────────────────────
+      // ── Components V2 — ping goes INSIDE the container, not top-level ────────
       await channel.send({
-        flags: 32768,                                      // MessageFlags.IsComponentsV2
+        flags: 32768,
         allowedMentions: { users: [member.id] },
         components: [
           {
-            type: 10,                                      // TextDisplay — ping
-            content: `<@${member.id}>`,
-          },
-          {
-            type: 17,                                      // Container
+            type: 17, // Container — the ONLY top-level component
             components: [
+              // 1. Ping the user inside the container
               {
-                type: 12,                                  // MediaGallery — banner
+                type: 10,
+                content: `<@${member.id}>`,
+              },
+              // 2. Banner image
+              {
+                type: 12,
                 items: [{ media: { url: cfg.welcomeBannerUrl } }],
               },
+              // 3. Title
               {
                 type: 10,
                 content: `# ${eWelcome} Willkommen hier auf NRW:RP I German`,
               },
-              { type: 14 },                               // Separator
+              { type: 14 },
+              // 4. Main content
               {
                 type: 10,
                 content: mainText,
               },
               { type: 14 },
+              // 5. Footer
               {
                 type: 10,
                 content: footer,
@@ -76,7 +90,7 @@ async function execute(member, client) {
         ],
       });
     } else {
-      // ── Embed fallback ───────────────────────────────────────────────────────
+      // ── Embed fallback (no banner configured) ────────────────────────────────
       const embed = new EmbedBuilder()
         .setColor(0x2B2D31)
         .setTitle(`${eWelcome} Willkommen hier auf NRW:RP I German`)
