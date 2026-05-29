@@ -16,6 +16,8 @@ function fill(text, vars) {
 async function execute(member, client) {
   try {
     const cfg = await getGuildConfig(member.guild.id);
+    // Module check
+    if (cfg.modules?.welcome === false) return;
     if (!cfg.welcomeChannelId) return;
 
     const channel = member.guild.channels.cache.get(cfg.welcomeChannelId);
