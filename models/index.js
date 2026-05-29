@@ -18,6 +18,27 @@ const guildConfigSchema = new Schema({
   teamlistRoleIds:   { type: [String], default: [] },  // ordered list of roles to show
   teamlistChannelId: { type: String, default: null },
 
+  // Fraktion messages (customizable)
+  frakMsgOffiziellTitle:  { type: String, default: "FRAKTION OFFIZIELL" },
+  frakMsgOffiziellBody:   { type: String, default: "Die Fraktion **{name}** ist nun offiziell." },
+  frakMsgAufgeloestTitle: { type: String, default: "FRAKTION AUFGELÖST" },
+  frakMsgAufgeloestBody:  { type: String, default: "Die Fraktion **{name}** wurde offiziell aufgelöst." },
+  frakMsgWarnTitle:       { type: String, default: "FRAKTION VERWARNT" },
+  frakMsgWarnBody:        { type: String, default: "Die Fraktion **{name}** hat **{warns}/3** Verwarnungen.\n**Grund:** {grund}" },
+  frakMsgGreeting:        { type: String, default: "Mit freundlichen Grüßen,\n@frakleitung" },
+  frakMsgFooter:          { type: String, default: "NRW:RP I German" },
+  frakBannerUrl:          { type: String, default: null },
+
+  // Fraktion categories labels (customizable)
+  frakCatStaatlichLabel:  { type: String, default: "🏛️ Staatliche Fraktionen" },
+  frakCatIllegalLabel:    { type: String, default: "💀 Illegale Fraktionen" },
+  frakCatFirmaLabel:      { type: String, default: "🏢 Firmen" },
+  frakCatAndereLabel:     { type: String, default: "📋 Andere" },
+
+  // Fraktion list header/footer
+  frakListTitle:          { type: String, default: "Fraktionsliste — NRW:RP I German" },
+  frakListFooter:         { type: String, default: "NRW:RP I German" },
+
   // Fraktion list
   fraktionListChannelId:   { type: String, default: null },
   fraktionAnnounceChannelId: { type: String, default: null },
@@ -148,6 +169,7 @@ const fraktionSchema = new S2({
   guildId:        { type: String, required: true },
   fraktionId:     { type: String, required: true, unique: true },
   name:           { type: String, required: true },
+  kategorie:      { type: String, default: "staatlich", enum: ["staatlich","illegal","firma","andere"] },
   leitungId:      { type: String, default: null },   // Discord user ID
   discordLink:    { type: String, default: null },
   standort:       { type: String, default: null },
