@@ -79,36 +79,23 @@ async function execute(interaction) {
 
   const statusEmoji = isStart ? (emojis.ok     || "🟢") : (emojis.error  || "🔴");
   const headerEmoji = isStart ? (emojis.rpstart || "🎮") : (emojis.rpstop || "⚠️");
-  const infoEmoji   = emojis.info   || "ℹ️";
-  const staffEmoji  = emojis.staff  || "⭐";
-  const memberEmoji = emojis.member || "👤";
 
-  const mainText = isStart
-    ? [
-        `${statusEmoji} **Der Server ist ab jetzt moderiert und das Roleplay ist eröffnet.**`,
-        ``,
-        `${memberEmoji} Danke, dass du ein Teil der Community bist!`,
-        `${staffEmoji} Unser Team steht dir bei Fragen zur Verfügung.`,
-        ``,
-        `Viel Spaß beim Spielen! 🎮`,
-      ].join("\n")
-    : [
-        `${statusEmoji} **Der Server ist nicht mehr moderiert und das Roleplay ist beendet.**`,
-        ``,
-        `${memberEmoji} Danke, dass du dabei warst und zur Community beigetragen hast!`,
-        `${infoEmoji} Das nächste Roleplay wird rechtzeitig angekündigt.`,
-        ``,
-        `Bis zum nächsten Mal! 👋`,
-      ].join("\n");
+  const rpTitle = isStart
+    ? (cfg.rpStartTitle || "Roleplay Start")
+    : (cfg.rpStopTitle  || "Roleplay Stop");
+
+  const rpText = isStart
+    ? (cfg.rpStartText || "Der Server ist ab jetzt moderiert und das Roleplay ist eröffnet.\n\nDanke, dass du ein Teil der Community bist!\nViel Spaß beim Spielen! 🎮")
+    : (cfg.rpStopText  || "Der Server ist nicht mehr moderiert und das Roleplay ist beendet.\n\nDanke, dass du dabei warst!\nBis zum nächsten Mal! 👋");
 
   const container = new ContainerBuilder()
     .setAccentColor(isStart ? 0x57F287 : 0xED4245)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# ${headerEmoji} Roleplay ${isStart ? "Start" : "Stop"}`)
+      new TextDisplayBuilder().setContent(`# ${headerEmoji} ${statusEmoji} ${rpTitle}`)
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(mainText)
+      new TextDisplayBuilder().setContent(rpText)
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(
