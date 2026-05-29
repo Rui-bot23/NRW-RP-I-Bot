@@ -25,7 +25,7 @@ const guildConfigSchema = new Schema({
   frakMsgAufgeloestBody:  { type: String, default: "Die Fraktion **{name}** wurde offiziell aufgelöst." },
   frakMsgWarnTitle:       { type: String, default: "FRAKTION VERWARNT" },
   frakMsgWarnBody:        { type: String, default: "Die Fraktion **{name}** hat **{warns}/3** Verwarnungen.\n**Grund:** {grund}" },
-  frakMsgGreeting:        { type: String, default: "Mit freundlichen Grüßen,\n@frakleitung" },
+  frakMsgGreeting:        { type: String, default: "Mit freundlichen Grüßen,\n{frakleitung}" },
   frakMsgFooter:          { type: String, default: "NRW:RP I German" },
   frakBannerUrl:          { type: String, default: null },
 
