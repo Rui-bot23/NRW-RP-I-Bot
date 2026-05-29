@@ -4,6 +4,22 @@ const { model, Schema } = require("mongoose");
 const guildConfigSchema = new Schema({
   guildId: { type: String, required: true, unique: true },
 
+  // Welcome — customizable text
+  welcomeTitle:    { type: String, default: "Willkommen hier auf NRW:RP I German" },
+  welcomeIntro:    { type: String, default: "Schön, dass du da bist **{nick}**! Bitte lies dir diese Infos aufmerksam durch:" },
+  welcomeLine1:    { type: String, default: "Lies dir unser {rules} durch." },
+  welcomeLine2:    { type: String, default: "Hole dir eine Rolle in {roles} für Pings." },
+  welcomeLine3:    { type: String, default: "Bei Fragen öffne ein Ticket in {ticket}." },
+  welcomeLine4:    { type: String, default: "Fraktionen findest du in {fraktionen}." },
+  welcomeLine5:    { type: String, default: "Bei Interesse kannst du dich auch im Staff Team bewerben!" },
+  welcomeFooter:   { type: String, default: "Bitte halte dich an unsere Regeln und viel Spaß im RP!\n-# NRW:RP I German" },
+
+  // RP messages — customizable text
+  rpStartTitle:   { type: String, default: "Roleplay Start" },
+  rpStartText:    { type: String, default: "Der Server ist ab jetzt moderiert und das Roleplay ist eröffnet.\n\nDanke, dass du ein Teil der Community bist!\nViel Spaß beim Spielen! 🎮" },
+  rpStopTitle:    { type: String, default: "Roleplay Stop" },
+  rpStopText:     { type: String, default: "Der Server ist nicht mehr moderiert und das Roleplay ist beendet.\n\nDanke, dass du dabei warst!\nBis zum nächsten Mal! 👋" },
+
   // Welcome
   welcomeChannelId:   { type: String, default: null },  // channel to send welcome message
   welcomeBannerUrl:   { type: String, default: null },  // attachment or image URL for banner
@@ -11,6 +27,33 @@ const guildConfigSchema = new Schema({
   welcomeRolesChannel:     { type: String, default: null },  // #rollen channel mention
   welcomeTicketChannel:    { type: String, default: null },  // #ticket channel mention
   welcomeFraktionChannel:  { type: String, default: null },  // #fraktionen channel mention
+
+  // AutoMod
+  automod: {
+    antilinkEnabled:    { type: Boolean, default: false },
+    antilinkAction:     { type: String,  default: "delete" },
+    antispamEnabled:    { type: Boolean, default: false },
+    antispamLimit:      { type: Number,  default: 5 },
+    antibadwordsEnabled:{ type: Boolean, default: false },
+    blacklist:          { type: [String], default: [] },
+    ignoreList:         { type: [String], default: [] },
+  },
+
+  // Logging
+  logging: {
+    enabled:           { type: Boolean, default: false },
+    messageDelete:     { type: String,  default: null },
+    messageEdit:       { type: String,  default: null },
+    memberJoin:        { type: String,  default: null },
+    memberLeave:       { type: String,  default: null },
+    memberBan:         { type: String,  default: null },
+    memberUpdate:      { type: String,  default: null },
+    roleCreate:        { type: String,  default: null },
+    roleDelete:        { type: String,  default: null },
+    channelCreate:     { type: String,  default: null },
+    channelDelete:     { type: String,  default: null },
+    voiceUpdate:       { type: String,  default: null },
+  },
 
   // Moderation
   modLogChannelId: { type: String, default: null },
