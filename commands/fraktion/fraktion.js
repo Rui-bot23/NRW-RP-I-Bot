@@ -169,7 +169,12 @@ function buildAnnouncement(cfg, type, vars, ping = null, pingRoleIds = []) {
     body  = fill(cfg.frakMsgWarnBody        || "Die Fraktion **{name}** hat **{warns}/3** Verwarnungen.\n**Grund:** {grund}", vars);
   }
 
-  const greeting = fill(cfg.frakMsgGreeting || "Mit freundlichen Grüßen,\n@frakleitung", vars);
+  // Build actual role mentions for the greeting
+  const roleMentions = pingRoleIds.length
+    ? pingRoleIds.map(id => `<@&${id}>`).join(" ")
+    : (ping || "@frakleitung");
+  const greetingTemplate = cfg.frakMsgGreeting || "Mit freundlichen Grüßen,\n{frakleitung}";
+  const greeting = fill(greetingTemplate, { ...vars, frakleitung: roleMentions });
   const sign = type === "offiziell" ? "➕" : type === "aufgeloest" ? "➖" : "⚠️";
 
   const container = new ContainerBuilder()
